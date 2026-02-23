@@ -49,7 +49,7 @@ metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 size = Vector2(0.23024933, 0.1414682)
 orientation = 2
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_havwb"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_jw32o"]
 
 [sub_resource type="Image" id="Image_jw32o"]
 data = {
@@ -60,7 +60,7 @@ data = {
 "width": 18
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_50glp"]
+[sub_resource type="ImageTexture" id="ImageTexture_vy5pj"]
 image = SubResource("Image_jw32o")
 
 [sub_resource type="Image" id="Image_50glp"]
@@ -72,13 +72,13 @@ data = {
 "width": 4
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_bmxlf"]
+[sub_resource type="ImageTexture" id="ImageTexture_4kpch"]
 image = SubResource("Image_50glp")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_grg3l"]
 render_priority = 0
 shader = ExtResource("5_jw32o")
-shader_parameter/ray_count = 50
+shader_parameter/ray_count = 30
 shader_parameter/bounce_count = 10
 shader_parameter/display_type = 0
 shader_parameter/max_depth = 10.0
@@ -86,17 +86,17 @@ shader_parameter/enable_environment = true
 shader_parameter/horizon_color = Color(1, 1, 1, 1)
 shader_parameter/zenith_color = Color(0.5681632, 0.70066094, 0.88788533, 1)
 shader_parameter/ground_color = Color(0.627451, 0.58431375, 0.6313726, 1)
-shader_parameter/sun_buffer = SubResource("ImageTexture_bmxlf")
+shader_parameter/sun_buffer = SubResource("ImageTexture_4kpch")
 shader_parameter/draw_spheres = true
-shader_parameter/sphere_buffer = SubResource("ImageTexture_50glp")
+shader_parameter/sphere_buffer = SubResource("ImageTexture_vy5pj")
 shader_parameter/draw_boxes = false
 shader_parameter/draw_meshes = false
 shader_parameter/plane_size = Vector2(0.22796963, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 shader_parameter/enable_accumulation = false
-shader_parameter/last_frame_texture = SubResource("ViewportTexture_havwb")
-shader_parameter/frame_count = 11617
+shader_parameter/last_frame_texture = SubResource("ViewportTexture_jw32o")
+shader_parameter/frame_count = 54
 
 [node name="Main" type="Node" unique_id=451867634]
 
@@ -208,7 +208,7 @@ transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.8793
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.74988383, -0.1097859, 0.65239096, 0.30930614, 0.92989236, -0.19904402, -0.58480406, 0.35104883, 0.73127395, 1.5878812, -0.24106073, -2.0680044)
+transform = Transform3D(-0.87724113, 0.14488754, -0.4575811, -0.2218754, 0.7229169, 0.6542666, 0.42561477, 0.67549086, -0.60205483, -1.3274792, 1.7650027, -5.0924263)
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_pbw6q")

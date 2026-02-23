@@ -39,38 +39,26 @@ HitInfo ray_sphere(in Ray ray, in Sphere sphere)
 	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), false);
 	
 	vec3 origin = ray.origin - sphere.center;
-	float a = dot(ray.dir, ray.dir);
 	float b = 2.0 * dot(ray.dir, origin);
 	float c = dot(origin, origin) - sphere.radius * sphere.radius;
-	float delta = b * b - 4.0 * a * c;
+	float delta = b * b - 4.0 * c;
 	
+	// No intersection
 	if (delta < 0.0)
 	{
 		return hit_info;
 	}
 	
-	float dist = -1.0;
+	float sqrt_delta = sqrt(delta);
 	
-	if (delta == 0.0)
-	{
-		dist = -b / (2.0 * a);
-	}
-	else
-	{
-		float sqrt_delta = sqrt(delta);
-		float inv_a = 1.0 / a;
-		float d0 = -(b - sqrt_delta) * inv_a * 0.5;
-		float d1 = -(b + sqrt_delta) * inv_a * 0.5;
-		dist = d0 > d1 ? d1 : d0;
-	}
-	
-	if (dist < 0.0)
+	// dist is < 0
+	if (-b < sqrt_delta)
 	{
 		return hit_info;
 	}
 	
 	hit_info.hit = true;
-	hit_info.dist = dist;
+	hit_info.dist = -(b + sqrt_delta) * 0.5;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = (hit_info.point - sphere.center) / sphere.radius;
 	
@@ -81,7 +69,7 @@ HitInfo ray_sphere(in Ray ray, in Sphere sphere)
 	return hit_info;
 }
 
-HitInfo ray_triangle(Ray ray, Triangle triangle)
+HitInfo ray_triangle(in Ray ray, in Triangle triangle)
 {
 	vec3 ab = triangle.pointB - triangle.pointA;
 	vec3 ac = triangle.pointC - triangle.pointA;
@@ -111,7 +99,7 @@ HitInfo ray_triangle(Ray ray, Triangle triangle)
 	return hit_info;
 }
 
-bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max)
+bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist)
 {	
 	vec3 tmin = (bound_min - ray.origin) * ray.invdir;
 	vec3 tmax = (bound_max - ray.origin) * ray.invdir;
@@ -120,7 +108,7 @@ bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max)
 	float tnear = max(max(t0.x, t0.y), t0.z);
 	float tfar = min(min(t1.x, t1.y), t1.z);
 	
-	return tnear <= tfar && tfar >= 0.0;
+	return tnear <= tfar && tfar >= 0.0 && tnear < min_dist;
 }
 
 vec3 random_dir(inout uint state)

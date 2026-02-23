@@ -151,10 +151,10 @@ void ComputeSpheresCollision(in Ray ray, inout HitInfo hit_info, inout Material 
 	}
 }
 
-void ComputeMeshCollision(in Ray ray, inout HitInfo hit_info, inout Material material, in Mesh mesh)
+void ComputeMeshCollision(in Ray ray, in Mesh mesh, inout HitInfo hit_info, inout Material material)
 {
-	//if (!ray_box(ray, mesh.bound_min, mesh.bound_max))
-		//return;
+	if (!ray_box(ray, mesh.bound_min, mesh.bound_max, hit_info.dist))
+		return;
 	
 	for (int j = 0; j < mesh.triangle_count; j++)
 	{
@@ -214,7 +214,7 @@ void ComputeMeshesCollision(in Ray ray, inout HitInfo hit_info, inout Material m
 			)
 		);
 		
-		ComputeMeshCollision(ray, hit_info, material, mesh);
+		ComputeMeshCollision(ray, mesh, hit_info, material);
 	}
 }
 
@@ -246,6 +246,7 @@ vec3 Trace(in Ray ray, inout uint rng_state, inout int bounces)
 		
 		ray.origin = object.hit.point;
 		ray.dir = normalize(object.hit.normal + random_dir(rng_state));
+		ray.invdir = 1.0 / ray.dir;
 		
 		light += object.material.emissive * object.material.emissive_intensity * ray_color;
 		ray_color *= object.material.color.xyz;
