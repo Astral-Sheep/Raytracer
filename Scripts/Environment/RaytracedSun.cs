@@ -5,11 +5,9 @@ using Godot;
 namespace Astral.Raytracer;
 
 [GlobalClass, Tool]
-public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
+public partial class RaytracedSun : DirectionalLight3D, IRaytracedObject
 {
-	public static uint ByteSize => 48;
-
-	[Export] public new RaytracedMaterial Material { get; protected set; }
+	[Export] protected float focus = 1000f;
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
@@ -46,24 +44,16 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				// Sphere shape
-				lWriter.Write(GlobalPosition.X);
-				lWriter.Write(GlobalPosition.Y);
-				lWriter.Write(GlobalPosition.Z);
-				lWriter.Write(Radius);
+				Vector3 lNormalizedSkyPosition = -Transform.Basis.Z;
+				lWriter.Write(lNormalizedSkyPosition.X);
+				lWriter.Write(lNormalizedSkyPosition.Y);
+				lWriter.Write(lNormalizedSkyPosition.Z);
+				lWriter.Write(focus);
 
-				// Material
-				RaytracedMaterial lMaterial = Material ?? raytracer.DefaultObjectMaterial;
-
-				lWriter.Write(lMaterial.color.R);
-				lWriter.Write(lMaterial.color.G);
-				lWriter.Write(lMaterial.color.B);
-				lWriter.Write(lMaterial.color.A);
-
-				lWriter.Write(lMaterial.emissive.R);
-				lWriter.Write(lMaterial.emissive.G);
-				lWriter.Write(lMaterial.emissive.B);
-				lWriter.Write(lMaterial.emissiveIntensity);
+				lWriter.Write(LightColor.R);
+				lWriter.Write(LightColor.G);
+				lWriter.Write(LightColor.B);
+				lWriter.Write(LightEnergy * 10f);
 			}
 
 			return lStream.ToArray();
@@ -71,20 +61,20 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public virtual void AddToRaytracer()
+	public void AddToRaytracer()
 	{
 		this.AddToRaytracer(
 			ref raytracer,
-			(s, r) => r.AddSphere(s)
+			(s, r) => r.AddSun(s)
 		);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public virtual void RemoveFromRaytracer()
+	public void RemoveFromRaytracer()
 	{
 		this.RemoveFromRaytracer(
 			raytracer,
-			(s, r) => r.RemoveSphere(s)
+			(s, r) => r.RemoveSun(s)
 		);
 	}
 }

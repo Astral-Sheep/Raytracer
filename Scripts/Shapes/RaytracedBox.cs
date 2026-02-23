@@ -7,7 +7,6 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 {
-	public ERaytracedShapeType Type => ERaytracedShapeType.Box;
 	public static uint ByteSize => 80;
 
 	[Export] public new RaytracedMaterial Material { get; protected set; }
@@ -17,7 +16,7 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	protected Callable AddButton => Callable.From(AddToRaytracer);
 
 	[ExportToolButton("Remove from Raytracer")]
-	protected Callable RemoveButton => Callable.From(AddToRaytracer);
+	protected Callable RemoveButton => Callable.From(RemoveFromRaytracer);
 
 	public override void _Ready()
 	{
@@ -83,7 +82,7 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	protected virtual void AddToRaytracer()
+	public virtual void AddToRaytracer()
 	{
 		this.AddToRaytracer(
 			ref raytracer,
@@ -92,7 +91,7 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	protected virtual void RemoveFromRaytracer()
+	public virtual void RemoveFromRaytracer()
 	{
 		this.RemoveFromRaytracer(
 			raytracer,

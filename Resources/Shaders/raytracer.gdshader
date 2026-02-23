@@ -9,14 +9,15 @@ const int DISPLAY_DEFAULT = 0;
 const int DISPLAY_NORMAL = 1;
 const int DISPLAY_UNSHADED = 2;
 const int DISPLAY_DEPTH = 3;
-const int DISPLAY_RAY_UV = 4;
+const int DISPLAY_BOUNCE_COUNT = 4;
+const int DISPLAY_RAY_UV = 5;
 
 uniform uint ray_count = 1;
 uniform uint bounce_count = 1;
 
 group_uniforms Debug;
 
-uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Ray UV") = 0;
+uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Bounces,Ray UV") = 0;
 uniform float max_depth = 10.0;
 
 group_uniforms Environment;
@@ -31,9 +32,7 @@ uniform vec3 ground_color: source_color;
 
 group_uniforms Environment.Sun;
 
-uniform vec3 sun_light_direction;
-uniform float sun_focus;
-uniform float sun_intensity;
+uniform sampler2D sun_buffer;
 
 group_uniforms Shapes;
 
@@ -87,7 +86,15 @@ struct HitObject
 	Material material;
 };
 
-vec3 GetEnvironmentLight(Ray ray)
+struct Sun
+{
+	vec3 direction;
+	float focus;
+	vec3 color;
+	float energy;
+};
+
+vec3 GetEnvironmentLight(in Ray ray)
 {
 	if (!enable_environment)
 	{
@@ -96,15 +103,30 @@ vec3 GetEnvironmentLight(Ray ray)
 	
 	float sky_ratio = pow(smoothstep(0, 0.04, ray.dir.y), 0.35);
 	vec3 sky_gradient = mix(horizon_color, zenith_color, sky_ratio);
-	float sun = pow(max(0, dot(ray.dir, -normalize(sun_light_direction))), sun_focus) * sun_intensity;
+	
+	vec3 sun_color = vec3(0.0);
+	
+	for (int i = 0; i < textureSize(sun_buffer, 0).x / 2; i++)
+	{
+		vec4 data0 = texelFetch(sun_buffer, ivec2(i * 2, 0), 0);
+		vec4 data1 = texelFetch(sun_buffer, ivec2(i * 2 + 1, 0), 0);
+		Sun sun = Sun(
+			data0.xyz,
+			data0.w,
+			data1.rgb,
+			data1.a
+		);
+		
+		sun_color += pow(max(0, dot(ray.dir, -normalize(sun.direction))), sun.focus) * sun.energy * sun.color;
+	}
 	
 	float ground_ratio = smoothstep(-0.01, 0.01, ray.dir.y);
 	float sun_mask = float(ground_ratio >= 1.0);
 	
-	return mix(ground_color, sky_gradient, ground_ratio) + sun * sun_mask;
+	return mix(ground_color, sky_gradient, ground_ratio) + sun_color * sun_mask;
 }
 
-void ComputeSpheresCollision(inout Ray ray, inout HitInfo hit_info, inout Material material)
+void ComputeSpheresCollision(in Ray ray, inout HitInfo hit_info, inout Material material)
 {
 	if (!draw_spheres)
 		return;
@@ -129,8 +151,11 @@ void ComputeSpheresCollision(inout Ray ray, inout HitInfo hit_info, inout Materi
 	}
 }
 
-void ComputeMeshCollision(inout Ray ray, inout HitInfo hit_info, inout Material material, in Mesh mesh)
+void ComputeMeshCollision(in Ray ray, inout HitInfo hit_info, inout Material material, in Mesh mesh)
 {
+	//if (!ray_box(ray, mesh.bound_min, mesh.bound_max))
+		//return;
+	
 	for (int j = 0; j < mesh.triangle_count; j++)
 	{
 		vec4 tdata0 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5, 0), 0);
@@ -157,7 +182,7 @@ void ComputeMeshCollision(inout Ray ray, inout HitInfo hit_info, inout Material 
 	}
 }
 
-void ComputeMeshesCollision(inout Ray ray, inout HitInfo hit_info, inout Material material)
+void ComputeMeshesCollision(in Ray ray, inout HitInfo hit_info, inout Material material)
 {
 	if (!draw_meshes)
 		return;
@@ -193,7 +218,7 @@ void ComputeMeshesCollision(inout Ray ray, inout HitInfo hit_info, inout Materia
 	}
 }
 
-HitObject ComputeRayCollision(Ray ray)
+HitObject ComputeRayCollision(in Ray ray)
 {
 	HitInfo hit = HitInfo(false, MAX_DISTANCE * 2.0, vec3(0.0), vec3(0.0), false);
 	Material material = Material(vec4(0.0), vec3(0.0), 0.0);
@@ -201,27 +226,15 @@ HitObject ComputeRayCollision(Ray ray)
 	ComputeSpheresCollision(ray, hit, material);
 	ComputeMeshesCollision(ray, hit, material);
 	
-	//for (int i = 0; i < box_count; i++)
-	//{
-		//Box box = Box(box_centers[i], box_extents[i]);
-		//HitInfo box_hit = ray_box(ray, box);
-		//
-		//if (!box_hit.hit || box_hit.dist > hit.dist)
-			//continue;
-		//
-		//hit = box_hit;
-		//material = Material(box_colors[i], box_emissives[i]);
-	//}
-	
 	return HitObject(hit, material);
 }
 
-vec3 Trace(Ray ray, inout uint rngState)
+vec3 Trace(in Ray ray, inout uint rng_state, inout int bounces)
 {
 	vec3 ray_color = vec3(1.0);
 	vec3 light = vec3(0.0);
 	
-	for (int i = 0; i < int(bounce_count) + 1; i++)
+	for (int i = 0; i <= int(bounce_count); i++)
 	{
 		HitObject object = ComputeRayCollision(ray);
 		
@@ -232,23 +245,28 @@ vec3 Trace(Ray ray, inout uint rngState)
 		}
 		
 		ray.origin = object.hit.point;
-		ray.dir = normalize(object.hit.normal + random_dir(rngState));
+		ray.dir = normalize(object.hit.normal + random_dir(rng_state));
 		
 		light += object.material.emissive * object.material.emissive_intensity * ray_color;
 		ray_color *= object.material.color.xyz;
+		++bounces;
 	}
 	
 	return light;
 }
 
-void display(inout vec3 albedo, in Ray ray, in uint rngState, in vec2 uv)
+void display(inout vec3 albedo, in Ray ray, in uint rng_state, in vec2 uv)
 {
+	vec3 light = vec3(0.0);
+	int bounces = 0;
+	
 	for (int i = 0; i < int(ray_count); i++)
 	{
-		albedo.rgb += Trace(ray, rngState);
+		light += Trace(ray, rng_state, bounces);
 	}
 	
-	albedo.rgb /= float(ray_count);
+	light /= float(ray_count);
+	albedo += light;
 	
 	if (enable_accumulation && frame_count > 0u)
 	{
@@ -278,6 +296,13 @@ void debug_depth(inout vec3 albedo, in Ray ray)
 	albedo.rgb = vec3(ComputeRayCollision(ray).hit.dist / max_depth);
 }
 
+void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
+{
+	int bounces = 0;
+	Trace(ray, rng_state, bounces);
+	albedo.rgb = mix(vec3(0.0), vec3(1.0), float(bounces) / float(bounce_count + 1u));
+}
+
 void debug_ray_uv(inout vec3 albedo, in Ray ray)
 {
 	albedo.rgb = ray.dir;
@@ -285,7 +310,7 @@ void debug_ray_uv(inout vec3 albedo, in Ray ray)
 
 void fragment()
 {
-	uint rngState = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
+	uint rng_sate = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
 	
 	ALBEDO.rgb = vec3(0.0);
 	
@@ -300,7 +325,7 @@ void fragment()
 	switch (display_type)
 	{
 		case DISPLAY_DEFAULT:
-			display(ALBEDO, ray, rngState, SCREEN_UV);
+			display(ALBEDO, ray, rng_sate, SCREEN_UV);
 			break;
 		case DISPLAY_NORMAL:
 			debug_normal(ALBEDO, ray);
@@ -310,6 +335,9 @@ void fragment()
 			break;
 		case DISPLAY_DEPTH:
 			debug_depth(ALBEDO, ray);
+			break;
+		case DISPLAY_BOUNCE_COUNT:
+			debug_bounce_count(ALBEDO, ray, rng_sate);
 			break;
 		case DISPLAY_RAY_UV:
 			debug_ray_uv(ALBEDO, ray);

@@ -1,10 +1,11 @@
 [gd_scene format=3 uid="uid://utehbhwhvvsd"]
 
-[ext_resource type="Material" uid="uid://cl641r1oxya40" path="res://Resources/Materials/RaytracingMaterial.tres" id="1_idj7w"]
+[ext_resource type="Script" uid="uid://5msirgheyy5x" path="res://Scripts/Environment/RaytracedSun.cs" id="1_jw32o"]
 [ext_resource type="Script" uid="uid://byk87rao7vn6w" path="res://Scripts/Shapes/RaytracedSphere.cs" id="1_rgh2o"]
 [ext_resource type="Script" uid="uid://de1saddwjohgl" path="res://Scripts/Raytracer.cs" id="2_idj7w"]
 [ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="2_jw32o"]
 [ext_resource type="Script" uid="uid://dnjf7acgbaeyg" path="res://Scripts/Shapes/RaytracedBox.cs" id="2_pbw6q"]
+[ext_resource type="Shader" uid="uid://4fral60610dw" path="res://Resources/Shaders/raytracer.gdshader" id="5_jw32o"]
 [ext_resource type="Resource" uid="uid://dnyhmekkcw5w7" path="res://Resources/Materials/Raytraced/DefaultRaytracedMaterial.tres" id="6_v1gob"]
 
 [sub_resource type="Resource" id="Resource_50glp"]
@@ -48,7 +49,74 @@ metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 size = Vector2(0.23024933, 0.1414682)
 orientation = 2
 
+[sub_resource type="ViewportTexture" id="ViewportTexture_havwb"]
+
+[sub_resource type="Image" id="Image_jw32o"]
+data = {
+"data": PackedByteArray(148, 134, 206, 189, 158, 153, 25, 190, 0, 138, 180, 61, 51, 51, 179, 62, 173, 172, 172, 62, 140, 139, 11, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 91, 37, 245, 190, 51, 175, 133, 190, 50, 32, 41, 63, 0, 0, 128, 62, 0, 0, 128, 63, 209, 208, 80, 62, 215, 214, 214, 62, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 133, 55, 100, 191, 175, 108, 171, 190, 80, 204, 130, 63, 205, 204, 76, 62, 0, 0, 0, 0, 171, 170, 42, 63, 141, 140, 12, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 204, 193, 0, 0, 0, 0, 0, 0, 200, 65, 132, 124, 48, 63, 206, 247, 211, 62, 102, 102, 102, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 69, 72, 169, 191, 175, 36, 225, 190, 156, 144, 157, 63, 0, 0, 0, 62, 236, 81, 56, 62, 236, 81, 56, 62, 236, 81, 56, 62, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 205, 62, 141, 62, 64, 74, 40, 188, 104, 122, 70, 191, 0, 0, 0, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"format": "RGBAFloat",
+"height": 1,
+"mipmaps": false,
+"width": 18
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_50glp"]
+image = SubResource("Image_jw32o")
+
+[sub_resource type="Image" id="Image_50glp"]
+data = {
+"data": PackedByteArray(196, 252, 68, 63, 102, 158, 2, 191, 6, 174, 196, 62, 0, 0, 122, 67, 0, 0, 128, 63, 203, 90, 109, 63, 184, 30, 69, 63, 0, 0, 200, 65, 22, 29, 31, 63, 157, 52, 10, 191, 26, 82, 17, 191, 0, 0, 122, 67, 82, 184, 206, 53, 1, 73, 120, 63, 87, 12, 64, 63, 0, 0, 200, 65),
+"format": "RGBAFloat",
+"height": 1,
+"mipmaps": false,
+"width": 4
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_bmxlf"]
+image = SubResource("Image_50glp")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grg3l"]
+render_priority = 0
+shader = ExtResource("5_jw32o")
+shader_parameter/ray_count = 50
+shader_parameter/bounce_count = 10
+shader_parameter/display_type = 0
+shader_parameter/max_depth = 10.0
+shader_parameter/enable_environment = true
+shader_parameter/horizon_color = Color(1, 1, 1, 1)
+shader_parameter/zenith_color = Color(0.5681632, 0.70066094, 0.88788533, 1)
+shader_parameter/ground_color = Color(0.627451, 0.58431375, 0.6313726, 1)
+shader_parameter/sun_buffer = SubResource("ImageTexture_bmxlf")
+shader_parameter/draw_spheres = true
+shader_parameter/sphere_buffer = SubResource("ImageTexture_50glp")
+shader_parameter/draw_boxes = false
+shader_parameter/draw_meshes = false
+shader_parameter/plane_size = Vector2(0.22796963, 0.14006752)
+shader_parameter/near_clip_plane = 0.05
+shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+shader_parameter/enable_accumulation = false
+shader_parameter/last_frame_texture = SubResource("ViewportTexture_havwb")
+shader_parameter/frame_count = 11617
+
 [node name="Main" type="Node" unique_id=451867634]
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=962752418 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(-0.63755465, -0.03770597, -0.7694819, -0.6491733, 0.564128, 0.51022947, 0.41484734, 0.824826, -0.3841402, 0, 0, 0)
+light_color = Color(1, 0.92716664, 0.77, 1)
+light_energy = 2.5
+shadow_enabled = true
+script = ExtResource("1_jw32o")
+focus = 250.0
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Sun2" type="DirectionalLight3D" parent="." unique_id=1811935419 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(0.6292402, 0.46663398, -0.62153757, -0.08758398, 0.83718234, 0.5398653, 0.7722601, -0.28526866, 0.567659, 0, 0, 0)
+light_color = Color(1.540184e-06, 0.96986395, 0.7501883, 1)
+light_energy = 2.5
+shadow_enabled = true
+script = ExtResource("1_jw32o")
+focus = 250.0
+raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere" type="CSGSphere3D" parent="." unique_id=2135020837 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.100842625, -0.15000007, 0.08815384)
@@ -140,15 +208,15 @@ transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.8793
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.9324601, -0.09976642, 0.34709594, 0.1648622, 0.9726742, -0.16334996, -0.32130662, 0.20954755, 0.92348886, 0.22238106, -0.15586343, -1.6010966)
+transform = Transform3D(0.74988383, -0.1097859, 0.65239096, 0.30930614, 0.92989236, -0.19904402, -0.58480406, 0.35104883, 0.73127395, 1.5878812, -0.24106073, -2.0680044)
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_pbw6q")
-surface_material_override/0 = ExtResource("1_idj7w")
+surface_material_override/0 = SubResource("ShaderMaterial_grg3l")
 script = ExtResource("2_idj7w")
 printOnce = true
 DefaultObjectMaterial = ExtResource("6_v1gob")
-material = ExtResource("1_idj7w")
+material = SubResource("ShaderMaterial_grg3l")
 ShowInSceneView = true
 metadata/_custom_type_script = "uid://bpclclickryw4"
 metadata/_edit_lock_ = true

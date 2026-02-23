@@ -111,63 +111,19 @@ HitInfo ray_triangle(Ray ray, Triangle triangle)
 	return hit_info;
 }
 
+bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max)
+{	
+	vec3 tmin = (bound_min - ray.origin) * ray.invdir;
+	vec3 tmax = (bound_max - ray.origin) * ray.invdir;
+	vec3 t0 = min(tmin, tmax);
+	vec3 t1 = max(tmin, tmax);
+	float tnear = max(max(t0.x, t0.y), t0.z);
+	float tfar = min(min(t1.x, t1.y), t1.z);
+	
+	return tnear <= tfar && tfar >= 0.0;
+}
+
 vec3 random_dir(inout uint state)
 {
 	return normalize(vec3(normal_randf(state), normal_randf(state), normal_randf(state)));
 }
-
-//HitInfo ray_box(Ray ray, Box box)
-//{
-	//HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), false);
-	//vec3 bounds[2] = {
-		//-box.extent,
-		//box.extent
-	//};
-	//
-	//vec3 origin = ray.origin - box.center;
-	//vec3 tmin = vec3(
-		//(bounds[int(ray.invdir.x < 0.0)].x - origin.x) * ray.invdir.x,
-		//(bounds[int(ray.invdir.y < 0.0)].y - origin.y) * ray.invdir.y,
-		//0.0
-	//);
-	//vec3 tmax = vec3(
-		//(bounds[1 - int(ray.invdir.x < 0.0)].x - origin.x) * ray.invdir.x,
-		//(bounds[1 - int(ray.invdir.y < 0.0)].y - origin.y) * ray.invdir.y,
-		//0.0
-	//);
-	//
-	//if (tmin.x > tmax.y || tmin.y > tmax.x)
-	//{
-		//return hit_info;
-	//}
-	//
-	//if (tmin.y > tmin.x)
-	//{
-		//tmin.x = tmin.y;
-	//}
-	//
-	//if (tmax.y < tmax.x)
-	//{
-		//tmax.x = tmax.y;
-	//}
-	//
-	//tmin.z = (bounds[int(ray.invdir.z < 0.0)].z - origin.z) * ray.invdir.z;
-	//tmax.z = (bounds[1 - int(ray.invdir.z < 0.0)].z - origin.z) * ray.invdir.z;
-	//
-	//if (tmin.z > tmin.x)
-	//{
-		//tmin.x = tmin.z;
-	//}
-	//
-	//if (tmax.z < tmax.x)
-	//{
-		//tmax.x = tmax.z;
-	//}
-	//
-	//hit_info.hit = true;
-	//hit_info.front_face = tmin.x > 0.0;
-	//hit_info.dist = float(hit_info.front_face) * tmin.x + (1.0 - float(hit_info.front_face)) * tmax.x;
-	//hit_info.point = ray.origin + ray.dir * hit_info.dist;
-	//
-	//return hit_info;
-//}

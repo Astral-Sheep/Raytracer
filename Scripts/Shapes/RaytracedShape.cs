@@ -3,9 +3,8 @@ using Godot;
 
 namespace Astral.Raytracer;
 
-public interface IRaytracedShape
+public interface IRaytracedShape : IRaytracedObject
 {
-	ERaytracedShapeType Type { get; }
 	RaytracedMaterial Material { get; }
 }
 
@@ -18,7 +17,7 @@ public enum ERaytracedShapeType
 
 public static class RaytracedShapeExtensions
 {
-	public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer, Action<T, Raytracer> pAdder) where T : Node3D, IRaytracedShape
+	public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer, Action<T, Raytracer> pAdder) where T : Node3D, IRaytracedObject
 	{
 		pRaytracer ??= pShape.GetTree().Root.GetNodeOrNull<Raytracer>(Raytracer.SCENE_PATH);
 
@@ -28,7 +27,7 @@ public static class RaytracedShapeExtensions
 		pAdder?.Invoke(pShape, pRaytracer);
 	}
 
-	public static void RemoveFromRaytracer<T>(this T pShape, Raytracer pRaytracer, Action<T, Raytracer> pRemover) where T : IRaytracedShape
+	public static void RemoveFromRaytracer<T>(this T pShape, Raytracer pRaytracer, Action<T, Raytracer> pRemover) where T : Node3D, IRaytracedObject
 	{
 		if (pRaytracer == null)
 			return;

@@ -7,24 +7,30 @@ namespace Astral.Raytracer;
 [Tool, GlobalClass]
 public partial class Raytracer : PostProcessLayer
 {
-	private struct SphereData
+	private struct ShaderData
 	{
-		public ImageTexture buffer;
+		public ImageTexture[] buffers;
 		public bool updateRequested;
 	}
 
-	private struct BoxData
-	{
-		public ImageTexture buffer;
-		public bool updateRequested;
-	}
-
-	private struct MeshData
-	{
-		public ImageTexture meshBuffer;
-		public ImageTexture trianglesBuffer;
-		public bool updateRequested;
-	}
+	// private struct SphereData
+	// {
+	// 	public ImageTexture buffer;
+	// 	public bool updateRequested;
+	// }
+	//
+	// private struct BoxData
+	// {
+	// 	public ImageTexture buffer;
+	// 	public bool updateRequested;
+	// }
+	//
+	// private struct MeshData
+	// {
+	// 	public ImageTexture meshBuffer;
+	// 	public ImageTexture trianglesBuffer;
+	// 	public bool updateRequested;
+	// }
 
 	public const string SCENE_PATH = "Main/Camera/Raytracer";
 
@@ -69,80 +75,102 @@ public partial class Raytracer : PostProcessLayer
 	[ExportToolButton("Reset frame count")]
 	protected Callable ResetFrameCount => Callable.From(() => frameCount = 0);
 
+	protected List<RaytracedSun> suns = new List<RaytracedSun>();
+
+	private ShaderData sunData = new ShaderData {
+		buffers = [ ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)) ],
+		updateRequested = false,
+	};
+
 	protected List<RaytracedSphere> spheres = new List<RaytracedSphere>();
-	private SphereData sphereData = new SphereData {
-		buffer = ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
+	private ShaderData sphereData = new ShaderData {
+		buffers = [ ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)) ],
 		updateRequested = false,
 	};
 
 	protected List<RaytracedBox> boxes = new List<RaytracedBox>();
-	private BoxData boxData = new BoxData {
-		buffer = ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
+	private ShaderData boxData = new ShaderData {
+		buffers = [ ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)) ],
 		updateRequested = false,
 	};
 
 	protected List<RaytracedMesh> meshes = new List<RaytracedMesh>();
-	private MeshData meshData = new MeshData {
-		meshBuffer = ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
-		trianglesBuffer = ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
+	private ShaderData meshData = new ShaderData {
+		buffers = [
+			ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
+			ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)),
+		],
 		updateRequested = false,
 	};
 
 	protected uint frameCount = 0;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void AddSun(RaytracedSun pSun)
+	{
+		AddObject(pSun, suns);
+		sphereData.updateRequested = true;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddSphere(RaytracedSphere pSphere)
 	{
-		AddShape(pSphere, spheres);
+		AddObject(pSphere, spheres);
 		sphereData.updateRequested = true;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddBox(RaytracedBox pBox)
 	{
-		AddShape(pBox, boxes);
+		AddObject(pBox, boxes);
 		boxData.updateRequested = true;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddMesh(RaytracedMesh pMesh)
 	{
-		AddShape(pMesh, meshes);
+		AddObject(pMesh, meshes);
 		meshData.updateRequested = true;
 	}
 
-	protected void AddShape<T>(T pShape, List<T> pShapeContainer) where T : IRaytracedShape
+	protected void AddObject<T>(T pObject, List<T> pObjectContainer) where T : IRaytracedObject
 	{
-		if (pShape == null || pShapeContainer.Contains(pShape))
+		if (pObject == null || pObjectContainer.Contains(pObject))
 			return;
 
-		pShapeContainer.Add(pShape);
+		pObjectContainer.Add(pObject);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void RemoveSun(RaytracedSun pSun)
+	{
+		RemoveObject(pSun, suns);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void RemoveSphere(RaytracedSphere pSphere)
 	{
-		RemoveShape(pSphere, spheres);
+		RemoveObject(pSphere, spheres);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void RemoveBox(RaytracedBox pBox)
 	{
-		RemoveShape(pBox, boxes);
+		RemoveObject(pBox, boxes);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void RemoveMesh(RaytracedMesh pMesh)
 	{
-		RemoveShape(pMesh, meshes);
+		RemoveObject(pMesh, meshes);
 	}
 
-	protected void RemoveShape<T>(T pShape, List<T> pShapeContainer) where T : IRaytracedShape
+	protected void RemoveObject<T>(T pObject, List<T> pObjectContainer) where T : IRaytracedObject
 	{
-		if (pShape == null || !pShapeContainer.Contains(pShape))
+		if (pObject == null || !pObjectContainer.Contains(pObject))
 			return;
 
-		pShapeContainer.Remove(pShape);
+		pObjectContainer.Remove(pObject);
 	}
 
 	protected override void Init()
@@ -176,7 +204,7 @@ public partial class Raytracer : PostProcessLayer
 		Refresh();
 #endif //DEBUG
 
-		if (material == null)
+		if (material == null || material != GetSurfaceOverrideMaterial(0))
 		{
 			if (GetSurfaceOverrideMaterial(0) is not ShaderMaterial lMaterial)
 				return;
@@ -200,6 +228,7 @@ public partial class Raytracer : PostProcessLayer
 			);
 		}
 
+		UpdateSuns();
 		UpdateSpheres();
 		UpdateBoxes();
 		UpdateMeshes();
@@ -215,6 +244,35 @@ public partial class Raytracer : PostProcessLayer
 		{
 			print = false;
 		}
+	}
+
+	protected void UpdateSuns()
+	{
+		List<byte> lRawData = new List<byte>();
+
+		for (int i = 0; i < suns.Count; i++)
+		{
+			RaytracedSun lSun = suns[i];
+
+			if (lSun is { Visible: true })
+			{
+				lRawData.AddRange(lSun.GetBytes());
+			}
+		}
+
+		if (lRawData.Count > 0)
+		{
+			SetBufferData(sunData.buffers[0], lRawData.ToArray());
+			material.SetShaderParameter("sun_buffer", sunData.buffers[0]);
+			material.SetShaderParameter("draw_suns", true);
+		}
+		else
+		{
+			material.SetShaderParameter("sun_buffer", default(ImageTexture));
+			material.SetShaderParameter("draw_suns", false);
+		}
+
+		sunData.updateRequested = lRawData.Count > 0;
 	}
 
 	protected void UpdateSpheres()
@@ -233,8 +291,8 @@ public partial class Raytracer : PostProcessLayer
 
 		if (lRawData.Count > 0)
 		{
-			SetBufferData(sphereData.buffer, lRawData.ToArray());
-			material.SetShaderParameter("sphere_buffer", sphereData.buffer);
+			SetBufferData(sphereData.buffers[0], lRawData.ToArray());
+			material.SetShaderParameter("sphere_buffer", sphereData.buffers[0]);
 			material.SetShaderParameter("draw_spheres", true);
 		}
 		else
@@ -262,8 +320,8 @@ public partial class Raytracer : PostProcessLayer
 
 		if (lRawData.Count > 0)
 		{
-			SetBufferData(boxData.buffer, lRawData.ToArray());
-			material.SetShaderParameter("box_buffer", boxData.buffer);
+			SetBufferData(boxData.buffers[0], lRawData.ToArray());
+			material.SetShaderParameter("box_buffer", boxData.buffers[0]);
 			material.SetShaderParameter("draw_boxes", true);
 		}
 		else
@@ -293,10 +351,10 @@ public partial class Raytracer : PostProcessLayer
 
 		if (lRawMeshes.Count > 0)
 		{
-			SetBufferData(meshData.meshBuffer, lRawMeshes.ToArray());
-			SetBufferData(meshData.trianglesBuffer, lRawTriangles.ToArray());
-			material.SetShaderParameter("mesh_buffer", meshData.meshBuffer);
-			material.SetShaderParameter("triangle_buffer", meshData.trianglesBuffer);
+			SetBufferData(meshData.buffers[0], lRawMeshes.ToArray());
+			SetBufferData(meshData.buffers[1], lRawTriangles.ToArray());
+			material.SetShaderParameter("mesh_buffer", meshData.buffers[0]);
+			material.SetShaderParameter("triangle_buffer", meshData.buffers[1]);
 			material.SetShaderParameter("draw_meshes", true);
 		}
 		else

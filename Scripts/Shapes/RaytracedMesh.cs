@@ -7,7 +7,6 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 {
-	public ERaytracedShapeType Type => ERaytracedShapeType.Mesh;
 	public static uint ByteSize => 112;
 
 	[Export] public RaytracedMaterial Material { get; protected set; }
@@ -17,7 +16,7 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 	protected Callable AddButton => Callable.From(AddToRaytracer);
 
 	[ExportToolButton("Remove from Raytracer")]
-	protected Callable RemoveButton => Callable.From(AddToRaytracer);
+	protected Callable RemoveButton => Callable.From(RemoveFromRaytracer);
 
 	public override void _Ready()
 	{
@@ -52,14 +51,16 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 				lWriter.Write((float)(Mesh.GetFaces().Length / 3));
 
 				Aabb lBounds = GetAabb();
+				Vector3 lGlobalMin = ToGlobal(lBounds.Position);
+				Vector3 lGlobalMax = ToGlobal(lBounds.End);
 
-				lWriter.Write(lBounds.Position.X);
-				lWriter.Write(lBounds.Position.Y);
-				lWriter.Write(lBounds.Position.Z);
+				lWriter.Write(lGlobalMin.X);
+				lWriter.Write(lGlobalMin.Y);
+				lWriter.Write(lGlobalMin.Z);
 
-				lWriter.Write(lBounds.End.X);
-				lWriter.Write(lBounds.End.Y);
-				lWriter.Write(lBounds.End.Z);
+				lWriter.Write(lGlobalMax.X);
+				lWriter.Write(lGlobalMax.Y);
+				lWriter.Write(lGlobalMax.Z);
 
 				lWriter.Write(GlobalPosition.X);
 				lWriter.Write(GlobalPosition.Y);
@@ -149,7 +150,7 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	protected virtual void AddToRaytracer()
+	public virtual void AddToRaytracer()
 	{
 		this.AddToRaytracer(
 			ref raytracer,
@@ -158,7 +159,7 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	protected virtual void RemoveFromRaytracer()
+	public virtual void RemoveFromRaytracer()
 	{
 		this.RemoveFromRaytracer(
 			raytracer,
