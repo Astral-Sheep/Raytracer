@@ -37,6 +37,7 @@ public partial class Raytracer : PostProcessLayer
 	private const string PLANE_SIZE = "plane_size";
 	private const string NEAR_CLIP_PLANE = "near_clip_plane";
 	private const string LOCAL_TO_WORLD_MATRIX = "local_to_world_matrix";
+	private const string FRAME_COUNT = "frame_count";
 
 	[ExportGroup("Editor debug")]
 	[Export] protected bool print = false;
@@ -57,6 +58,9 @@ public partial class Raytracer : PostProcessLayer
 		System.Array.Clear(meshes);
 		meshSlotIndex = 0;
 	});
+
+	[ExportToolButton("Reset frame count")]
+	protected Callable ResetFrameCount => Callable.From(() => frameCount = 0);
 
 	protected RaytracedSphere[] spheres = new RaytracedSphere[MAX_SHAPES];
 	protected int sphereSlotIndex = 0;
@@ -82,6 +86,8 @@ public partial class Raytracer : PostProcessLayer
 
 	protected RaytracedMesh[] meshes = new RaytracedMesh[MAX_SHAPES];
 	protected int meshSlotIndex = 0;
+
+	protected uint frameCount = 0;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddSphere(RaytracedSphere pSphere)
@@ -163,6 +169,16 @@ public partial class Raytracer : PostProcessLayer
 		}
 	}
 
+	protected override void Dispose(bool pDisposing)
+	{
+		base.Dispose(pDisposing);
+
+		if (!pDisposing)
+			return;
+
+		RenderingServer.FramePostDraw -= UpdateFrame;
+	}
+
 	public override void _Process(double pDelta)
 	{
 		base._Process(pDelta);
@@ -185,6 +201,7 @@ public partial class Raytracer : PostProcessLayer
 		material.SetShaderParameter(PLANE_SIZE, NearPlaneSize);
 		material.SetShaderParameter(NEAR_CLIP_PLANE, Camera.Near);
 		material.SetShaderParameter(LOCAL_TO_WORLD_MATRIX, Camera.GlobalTransform);
+		material.SetShaderParameter(FRAME_COUNT, frameCount);
 
 		if (print)
 		{
@@ -199,6 +216,9 @@ public partial class Raytracer : PostProcessLayer
 		UpdateSpheres();
 		UpdateBoxes();
 		UpdateMeshes();
+
+		++frameCount;
+		RenderingServer.FramePostDraw += UpdateFrame;
 
 		if (printOnce)
 		{
@@ -333,5 +353,14 @@ public partial class Raytracer : PostProcessLayer
 	protected void UpdateMeshes()
 	{
 		
+	}
+
+	protected void UpdateFrame()
+	{
+		if (Camera == null)
+			return;
+
+		material.SetShaderParameter("last_frame_texture", Camera.GetViewport().GetTexture());
+		RenderingServer.FramePostDraw -= UpdateFrame;
 	}
 }

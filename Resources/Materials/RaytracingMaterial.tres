@@ -2,26 +2,36 @@
 
 [ext_resource type="Shader" uid="uid://4fral60610dw" path="res://Resources/Shaders/raytracer.gdshader" id="1_pe60f"]
 
+[sub_resource type="ViewportTexture" id="ViewportTexture_pe60f"]
+
 [resource]
 render_priority = 0
 shader = ExtResource("1_pe60f")
-shader_parameter/ray_count = 100
+shader_parameter/ray_count = 50
 shader_parameter/bounce_count = 10
-shader_parameter/clear_color = Color(0, 0, 0, 1)
+shader_parameter/clear_color = Color(0.0117, 0.019530011, 0.09, 1)
 shader_parameter/display_type = 0
 shader_parameter/max_depth = 10.0
-shader_parameter/sphere_centers = Array[Vector3]([Vector3(0, 0, 0), Vector3(-0.619, -0.25, 0.593), Vector3(-0.5854369, -0.375, 1.1152465), Vector3(0, -25.5, 0), Vector3(-5.7830667, -1.4252896, -5.6174827), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0)])
-shader_parameter/sphere_radiuses = Array[float]([0.5, 0.25, 0.125, 25.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-shader_parameter/sphere_colors = Array[Color]([Color(0.3372549, 0.54509807, 1, 1), Color(1, 0.20392157, 0.41960785, 1), Color(0, 0.6666667, 0.54901963, 1), Color(0.68939996, 0.41399997, 0.9, 1), Color(0, 0, 0, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
-shader_parameter/sphere_emissives = Array[Color]([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(1, 1, 1, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
-shader_parameter/sphere_emissive_intensities = Array[float]([0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-shader_parameter/sphere_count = 5
+shader_parameter/horizon_color = Color(1, 1, 1, 1)
+shader_parameter/zenith_color = Color(0.53690004, 0.75454175, 0.91, 1)
+shader_parameter/ground_color = Color(0.654902, 0.60784316, 0.654902, 1)
+shader_parameter/sun_light_direction = Vector3(0.75, -0.5, 0.75)
+shader_parameter/sun_focus = 250.0
+shader_parameter/sun_intensity = 25.0
+shader_parameter/sphere_centers = Array[Vector3]([Vector3(-0.100842625, -0.15000007, 0.08815384), Vector3(-0.47880062, -0.26353487, 0.6606475), Vector3(-0.89147216, -0.3371549, 1.0218601), Vector3(0, -25.5, 0), Vector3(-1.322518, -0.44183236, 1.2309756), Vector3(0.27586976, -0.018159688, -0.7753053), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0)])
+shader_parameter/sphere_radiuses = Array[float]([0.35, 0.25, 0.2, 25.0, 0.125, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+shader_parameter/sphere_colors = Array[Color]([Color(0.3372549, 0.54509807, 1, 1), Color(1, 0.20392157, 0.41960785, 1), Color(0, 0.6666667, 0.54901963, 1), Color(0.68939996, 0.41399997, 0.9, 1), Color(0.18, 0.18, 0.18, 1), Color(1, 1, 1, 1), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
+shader_parameter/sphere_emissives = Array[Color]([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
+shader_parameter/sphere_emissive_intensities = Array[float]([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+shader_parameter/sphere_count = 6
 shader_parameter/box_centers = Array[Vector3]([Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0)])
 shader_parameter/box_extents = Array[Vector3]([Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0)])
 shader_parameter/box_colors = Array[Color]([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
 shader_parameter/box_emissives = Array[Color]([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)])
 shader_parameter/box_emissive_intensities = Array[float]([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 shader_parameter/box_count = 0
-shader_parameter/plane_size = Vector2(0.22356606, 0.14006752)
+shader_parameter/plane_size = Vector2(0.38598981, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+shader_parameter/last_frame_texture = SubResource("ViewportTexture_pe60f")
+shader_parameter/frame_count = 15696

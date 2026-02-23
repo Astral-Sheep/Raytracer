@@ -20,7 +20,17 @@ group_uniforms Debug;
 uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Ray UV") = 0;
 uniform float max_depth = 10.0;
 
-group_uniforms Shapes;
+group_uniforms Environment.Sky;
+
+uniform vec3 horizon_color: source_color;
+uniform vec3 zenith_color: source_color;
+uniform vec3 ground_color: source_color;
+
+group_uniforms Environment.Sun;
+
+uniform vec3 sun_light_direction;
+uniform float sun_focus;
+uniform float sun_intensity;
 
 group_uniforms Shapes.Spheres;
 
@@ -52,7 +62,8 @@ group_uniforms _Internal;
 uniform vec2 plane_size;
 uniform float near_clip_plane;
 uniform mat4 local_to_world_matrix;
-uniform sampler2D last_frame_texture;
+uniform sampler2D last_frame_texture: source_color;
+uniform uint frame_count;
 
 group_uniforms;
 
@@ -68,6 +79,18 @@ struct HitObject
 	HitInfo hit;
 	Material material;
 };
+
+vec3 GetEnvironmentLight(Ray ray)
+{
+	float sky_ratio = pow(smoothstep(0, 0.04, ray.dir.y), 0.35);
+	vec3 sky_gradient = mix(horizon_color, zenith_color, sky_ratio);
+	float sun = pow(max(0, dot(ray.dir, -normalize(sun_light_direction))), sun_focus) * sun_intensity;
+	
+	float ground_ratio = smoothstep(-0.01, 0.01, ray.dir.y);
+	float sun_mask = float(ground_ratio >= 1.0);
+	
+	return mix(ground_color, sky_gradient, ground_ratio) + sun * sun_mask;
+}
 
 HitObject ComputeRayCollision(Ray ray)
 {
@@ -112,7 +135,7 @@ vec3 Trace(Ray ray, inout uint rngState)
 		
 		if (!object.hit.hit)
 		{
-			//color = clear_color;
+			light += GetEnvironmentLight(ray) * ray_color;
 			break;
 		}
 		
@@ -121,7 +144,9 @@ vec3 Trace(Ray ray, inout uint rngState)
 		
 		vec3 random_dir = random_dir(rngState);
 		random_dir *= sign(dot(object.hit.normal, random_dir));
+		
 		ray.dir = normalize(random_dir);
+		ray.origin = object.hit.point;
 	}
 	
 	return light;
@@ -129,7 +154,7 @@ vec3 Trace(Ray ray, inout uint rngState)
 
 void fragment()
 {
-	uint rngState = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y);
+	uint rngState = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
 	
 	ALBEDO.rgb = vec3(0.0);
 	vec2 axis_uv = vec2(SCREEN_UV.x, 1.0 - SCREEN_UV.y);
@@ -151,6 +176,11 @@ void fragment()
 			}
 			
 			ALBEDO.rgb /= float(ray_count);
+			
+			vec3 last_color = texture(last_frame_texture, SCREEN_UV).rgb;
+			float weight = 1.0 / (float(frame_count) + 1.0);
+			vec3 average = last_color * (1.0 - weight) + ALBEDO.rgb * weight;
+			ALBEDO.rgb = average;
 			break;
 		case DISPLAY_NORMAL:
 			HitInfo hit_info = ComputeRayCollision(ray).hit;
