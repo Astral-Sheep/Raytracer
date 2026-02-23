@@ -1,0 +1,147 @@
+[gd_scene format=3 uid="uid://8ck1qqjndyic"]
+
+[ext_resource type="Script" uid="uid://c5hymns32fvqe" path="res://Scripts/Shapes/RaytracedMesh.cs" id="1_cgsey"]
+[ext_resource type="Script" uid="uid://de1saddwjohgl" path="res://Scripts/Raytracer.cs" id="1_k05cg"]
+[ext_resource type="Material" uid="uid://cl641r1oxya40" path="res://Resources/Materials/RaytracingMaterial.tres" id="1_qked8"]
+[ext_resource type="ArrayMesh" uid="uid://cf50awtyu363a" path="res://Assets/Models/trophy.obj" id="1_wdjv5"]
+[ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="2_havwb"]
+[ext_resource type="Resource" uid="uid://dnyhmekkcw5w7" path="res://Resources/Materials/Raytraced/DefaultRaytracedMaterial.tres" id="2_rvqyl"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_kt7k7"]
+size = Vector3(0.5, 0.025, 0.5)
+
+[sub_resource type="Resource" id="Resource_wsl48"]
+script = ExtResource("2_havwb")
+emissive = Color(1, 1, 1, 1)
+emissiveIntensity = 2.0
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="BoxMesh" id="BoxMesh_qked8"]
+size = Vector3(1.7, 0.1, 1.7)
+
+[sub_resource type="Resource" id="Resource_tda23"]
+script = ExtResource("2_havwb")
+color = Color(0.52407223, 0.88384956, 0.45838404, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_havwb"]
+script = ExtResource("2_havwb")
+color = Color(0.92, 0.92, 0.92, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="BoxMesh" id="BoxMesh_havwb"]
+size = Vector3(1.6, 1.5, 0.1)
+
+[sub_resource type="Resource" id="Resource_kt7k7"]
+script = ExtResource("2_havwb")
+color = Color(1, 0.30588236, 0.3372549, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_eu0k3"]
+script = ExtResource("2_havwb")
+color = Color(6.930828e-06, 0.63873464, 0.8863696, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="BoxMesh" id="BoxMesh_tda23"]
+size = Vector3(0.1, 1.5, 1.7)
+
+[sub_resource type="Resource" id="Resource_nr654"]
+script = ExtResource("2_havwb")
+color = Color(0.28, 0.28, 0.28, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_havwb"]
+flip_faces = true
+size = Vector2(1.7, 1.7)
+orientation = 0
+
+[sub_resource type="Resource" id="Resource_6xhcp"]
+script = ExtResource("2_havwb")
+color = Color(0.28, 0.28, 0.28, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_uy81v"]
+script = ExtResource("2_havwb")
+color = Color(1, 1, 1, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_rvqyl"]
+size = Vector2(0.23024933, 0.1414682)
+orientation = 2
+
+[node name="MeshTest" type="Node3D" unique_id=379964045]
+
+[node name="Light" type="MeshInstance3D" parent="." unique_id=733636047 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.488, 0)
+mesh = SubResource("BoxMesh_kt7k7")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_wsl48")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=1933351524 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+mesh = SubResource("BoxMesh_qked8")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_tda23")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Ceiling" type="MeshInstance3D" parent="." unique_id=1114618039 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+mesh = SubResource("BoxMesh_qked8")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_havwb")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Wall" type="MeshInstance3D" parent="." unique_id=57936590 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.75, 0.8)
+mesh = SubResource("BoxMesh_havwb")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_kt7k7")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Wall2" type="MeshInstance3D" parent="." unique_id=1598417190 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.75, -0.8)
+mesh = SubResource("BoxMesh_havwb")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_eu0k3")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Wall3" type="MeshInstance3D" parent="." unique_id=863564617 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0.75, 0)
+mesh = SubResource("BoxMesh_tda23")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_nr654")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Wall4" type="MeshInstance3D" parent="." unique_id=1749454760 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 0.75, 0)
+mesh = SubResource("PlaneMesh_havwb")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_6xhcp")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Trophy" type="MeshInstance3D" parent="." unique_id=677718157 node_paths=PackedStringArray("raytracer")]
+mesh = ExtResource("1_wdjv5")
+script = ExtResource("1_cgsey")
+Material = SubResource("Resource_uy81v")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=594446532]
+transform = Transform3D(0.87758255, -0.22984886, 0.42073548, 0, 0.87758255, 0.47942555, -0.47942555, -0.4207355, 0.77015114, 1.682942, 1.9177022, 3.0806046)
+
+[node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=681707236]
+process_priority = 5
+physics_interpolation_mode = 2
+transform = Transform3D(0.28399011, -0.32632515, 0.9015531, 0.45967922, 0.8715091, 0.17065072, -0.84143716, 0.3659709, 0.39750654, 1.63041, 0.80272925, -2.8559346)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_rvqyl")
+surface_material_override/0 = ExtResource("1_qked8")
+script = ExtResource("1_k05cg")
+printOnce = true
+EnableAccumulation = true
+DefaultObjectMaterial = ExtResource("2_rvqyl")
+material = ExtResource("1_qked8")
+ShowInSceneView = true
+metadata/_custom_type_script = "uid://de1saddwjohgl"
+metadata/_edit_lock_ = true

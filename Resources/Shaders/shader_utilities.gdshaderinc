@@ -4,7 +4,6 @@ float randf(inout uint state)
 	uint result = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
 	result = (result >> 22u) ^ result;
 	return float(result) / 4294967295.0;
-	//return fract(sin(dot(st + vec2(TIME, 0.0), vec2(12.9898, 78.233))) * 43758.5453123);
 }
 
 bool randb(inout uint state)

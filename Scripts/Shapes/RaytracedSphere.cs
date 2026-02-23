@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.CompilerServices;
 using Godot;
 
@@ -7,12 +8,16 @@ namespace Astral.Raytracer;
 public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 {
 	public ERaytracedShapeType Type => ERaytracedShapeType.Sphere;
+	public static uint ByteSize => 48;
 
 	[Export] public new RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
 	protected Callable AddButton => Callable.From(AddToRaytracer);
+
+	[ExportToolButton("Remove from Raytracer")]
+	protected Callable RemoveButton => Callable.From(AddToRaytracer);
 
 	public override void _Ready()
 	{
@@ -34,6 +39,36 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	{
 		base._ExitTree();
 		RemoveFromRaytracer();
+	}
+
+	public byte[] GetBytes()
+	{
+		using (MemoryStream lStream = new MemoryStream())
+		{
+			using (BinaryWriter lWriter = new BinaryWriter(lStream))
+			{
+				// Sphere shape
+				lWriter.Write(GlobalPosition.X);
+				lWriter.Write(GlobalPosition.Y);
+				lWriter.Write(GlobalPosition.Z);
+				lWriter.Write(Radius);
+
+				// Material
+				RaytracedMaterial lMaterial = Material ?? raytracer.DefaultObjectMaterial;
+
+				lWriter.Write(lMaterial.color.R);
+				lWriter.Write(lMaterial.color.G);
+				lWriter.Write(lMaterial.color.B);
+				lWriter.Write(lMaterial.color.A);
+
+				lWriter.Write(lMaterial.emissive.R);
+				lWriter.Write(lMaterial.emissive.G);
+				lWriter.Write(lMaterial.emissive.B);
+				lWriter.Write(lMaterial.emissiveIntensity);
+			}
+
+			return lStream.ToArray();
+		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

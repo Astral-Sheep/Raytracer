@@ -5,8 +5,8 @@ namespace Astral.Raytracer;
 
 public interface IRaytracedShape
 {
-	public ERaytracedShapeType Type { get; }
-	public RaytracedMaterial Material { get; }
+	ERaytracedShapeType Type { get; }
+	RaytracedMaterial Material { get; }
 }
 
 public enum ERaytracedShapeType

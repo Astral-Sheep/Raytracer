@@ -45,13 +45,15 @@ color = Color(1, 1, 1, 1)
 metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_pbw6q"]
-size = Vector2(0.2258017, 0.1414682)
+size = Vector2(0.23024933, 0.1414682)
 orientation = 2
 
 [node name="Main" type="Node" unique_id=451867634]
 
 [node name="Sphere" type="CSGSphere3D" parent="." unique_id=2135020837 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.100842625, -0.15000007, 0.08815384)
+cast_shadow = 0
+gi_mode = 0
 radius = 0.35
 radial_segments = 48
 rings = 24
@@ -60,7 +62,9 @@ Material = SubResource("Resource_50glp")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere2" type="CSGSphere3D" parent="." unique_id=1937130957 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.47880062, -0.26353487, 0.6606475)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.47880062, -0.2611023, 0.6606475)
+cast_shadow = 0
+gi_mode = 0
 radius = 0.25
 radial_segments = 48
 rings = 24
@@ -69,7 +73,9 @@ Material = SubResource("Resource_jw32o")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere3" type="CSGSphere3D" parent="." unique_id=1968320999 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, -0.00017593976, 0.00015649162, 0.0001759709, 0.99999994, -0.0001144072, -0.0001564566, 0.00011445509, 0.99999994, -0.89147216, -0.3371549, 1.0218601)
+transform = Transform3D(1, -0.00017593976, 0.00015649162, 0.0001759709, 0.99999994, -0.0001144072, -0.0001564566, 0.00011445509, 0.99999994, -0.89147216, -0.33481357, 1.0218601)
+cast_shadow = 0
+gi_mode = 0
 radius = 0.2
 radial_segments = 48
 rings = 24
@@ -79,6 +85,8 @@ raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere4" type="CSGSphere3D" parent="." unique_id=1542723406 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -25.5, 0)
+cast_shadow = 0
+gi_mode = 0
 radius = 25.0
 radial_segments = 48
 rings = 24
@@ -87,8 +95,10 @@ Material = SubResource("Resource_4kpch")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere5" type="CSGSphere3D" parent="." unique_id=1656668991 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7830667, -1.4252896, -5.6174827)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5842867, 3.7649856, -4.5840936)
 visible = false
+cast_shadow = 0
+gi_mode = 0
 radius = 5.0
 radial_segments = 48
 rings = 24
@@ -97,7 +107,9 @@ Material = SubResource("Resource_bmxlf")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere6" type="CSGSphere3D" parent="." unique_id=1117003486 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.322518, -0.44183236, 1.2309756)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.322518, -0.439733, 1.2309756)
+cast_shadow = 0
+gi_mode = 0
 radius = 0.125
 radial_segments = 48
 rings = 24
@@ -106,7 +118,9 @@ Material = SubResource("Resource_v1gob")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere7" type="CSGSphere3D" parent="." unique_id=1772675988 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27586976, -0.018159688, -0.7753053)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27586976, -0.010271609, -0.7753053)
+cast_shadow = 0
+gi_mode = 0
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
@@ -126,15 +140,15 @@ transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.8793
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.82705873, 0.2536889, -0.5015952, -0.27383766, 0.9611419, 0.03458938, 0.49087209, 0.10874763, 0.86442196, -1.7884673, -0.14332259, -2.0046086)
+transform = Transform3D(0.9324601, -0.09976642, 0.34709594, 0.1648622, 0.9726742, -0.16334996, -0.32130662, 0.20954755, 0.92348886, 0.22238106, -0.15586343, -1.6010966)
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_pbw6q")
 surface_material_override/0 = ExtResource("1_idj7w")
 script = ExtResource("2_idj7w")
 printOnce = true
+DefaultObjectMaterial = ExtResource("6_v1gob")
 material = ExtResource("1_idj7w")
-defaultObjectMaterial = ExtResource("6_v1gob")
 ShowInSceneView = true
 metadata/_custom_type_script = "uid://bpclclickryw4"
 metadata/_edit_lock_ = true
