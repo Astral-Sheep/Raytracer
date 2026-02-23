@@ -1,0 +1,109 @@
+[gd_scene format=3 uid="uid://utehbhwhvvsd"]
+
+[ext_resource type="Material" uid="uid://cl641r1oxya40" path="res://Resources/Materials/RaytracingMaterial.tres" id="1_idj7w"]
+[ext_resource type="Script" uid="uid://byk87rao7vn6w" path="res://Scripts/Shapes/RaytracedSphere.cs" id="1_rgh2o"]
+[ext_resource type="Script" uid="uid://de1saddwjohgl" path="res://Scripts/Raytracer.cs" id="2_idj7w"]
+[ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="2_jw32o"]
+[ext_resource type="Script" uid="uid://dnjf7acgbaeyg" path="res://Scripts/Shapes/RaytracedBox.cs" id="2_pbw6q"]
+[ext_resource type="Resource" uid="uid://dnyhmekkcw5w7" path="res://Resources/Materials/Raytraced/DefaultRaytracedMaterial.tres" id="6_v1gob"]
+
+[sub_resource type="Resource" id="Resource_50glp"]
+script = ExtResource("2_jw32o")
+color = Color(0.3372549, 0.54509807, 1, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_jw32o"]
+script = ExtResource("2_jw32o")
+color = Color(1, 0.20392157, 0.41960785, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_vy5pj"]
+script = ExtResource("2_jw32o")
+color = Color(0, 0.6666667, 0.54901963, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_4kpch"]
+script = ExtResource("2_jw32o")
+color = Color(0.68939996, 0.41399997, 0.9, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Resource" id="Resource_bmxlf"]
+script = ExtResource("2_jw32o")
+color = Color(0, 0, 0, 1)
+emissive = Color(1, 1, 1, 1)
+emissiveIntensity = 2.0
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_pbw6q"]
+size = Vector2(0.2258017, 0.1414682)
+orientation = 2
+
+[node name="Main" type="Node" unique_id=451867634]
+
+[node name="Sphere" type="CSGSphere3D" parent="." unique_id=2135020837 node_paths=PackedStringArray("raytracer")]
+radial_segments = 48
+rings = 24
+script = ExtResource("1_rgh2o")
+Material = SubResource("Resource_50glp")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Sphere2" type="CSGSphere3D" parent="." unique_id=1937130957 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.619, -0.25, 0.593)
+radius = 0.25
+radial_segments = 48
+rings = 24
+script = ExtResource("1_rgh2o")
+Material = SubResource("Resource_jw32o")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Sphere3" type="CSGSphere3D" parent="." unique_id=1968320999 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5854369, -0.375, 1.1152465)
+radius = 0.125
+radial_segments = 48
+rings = 24
+script = ExtResource("1_rgh2o")
+Material = SubResource("Resource_vy5pj")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Sphere4" type="CSGSphere3D" parent="." unique_id=1542723406 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -25.5, 0)
+radius = 25.0
+radial_segments = 48
+rings = 24
+script = ExtResource("1_rgh2o")
+Material = SubResource("Resource_4kpch")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Sphere5" type="CSGSphere3D" parent="." unique_id=1656668991 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7830667, -1.4252896, -5.6174827)
+radius = 5.0
+radial_segments = 48
+rings = 24
+script = ExtResource("1_rgh2o")
+Material = SubResource("Resource_bmxlf")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Box" type="CSGBox3D" parent="." unique_id=514731437 node_paths=PackedStringArray("raytracer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+visible = false
+size = Vector3(2.5, 1, 2.5)
+script = ExtResource("2_pbw6q")
+raytracer = NodePath("../Camera/Raytracer")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=1589001683]
+transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.879351, 0.47609672, -0.54441607, -0.39525756, 0.7398532, 1.6209136, 1.6437585, 2.490541)
+
+[node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
+process_priority = 5
+physics_interpolation_mode = 2
+transform = Transform3D(0.92909104, 0.17949739, -0.32337373, -0.18306148, 0.9829055, 0.019631118, 0.3213695, 0.040958196, 0.9460678, -1.4420549, -0.14023149, -2.062593)
+gi_mode = 0
+mesh = SubResource("PlaneMesh_pbw6q")
+surface_material_override/0 = ExtResource("1_idj7w")
+script = ExtResource("2_idj7w")
+printOnce = true
+material = ExtResource("1_idj7w")
+defaultObjectMaterial = ExtResource("6_v1gob")
+ShowInSceneView = true
+metadata/_custom_type_script = "uid://bpclclickryw4"
+metadata/_edit_lock_ = true

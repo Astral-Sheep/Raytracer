@@ -1,0 +1,12 @@
+<Project Sdk="Godot.NET.Sdk/4.6.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Scripts\Utility\CollectionUtility.cs.uid" />
+    <Content Include="Scripts\Utility\GodotUtility.cs.uid" />
+    <Content Include="Scripts\Utility\MathUtility.cs.uid" />
+  </ItemGroup>
+</Project>
