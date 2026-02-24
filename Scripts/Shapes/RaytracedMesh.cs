@@ -7,8 +7,6 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 {
-	public static uint ByteSize => 112;
-
 	[Export] public RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
@@ -47,50 +45,55 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
 				// Mesh shape
-				lWriter.Write((float)pTriangleStartIndex);
-				lWriter.Write((float)(Mesh.GetFaces().Length / 3));
+				lWriter.Write((float)pTriangleStartIndex); // 0
+				lWriter.Write((float)(Mesh.GetFaces().Length / 3)); // 1
 
 				Aabb lBounds = GetAabb();
 				Vector3 lGlobalMin = ToGlobal(lBounds.Position);
 				Vector3 lGlobalMax = ToGlobal(lBounds.End);
 
-				lWriter.Write(lGlobalMin.X);
-				lWriter.Write(lGlobalMin.Y);
-				lWriter.Write(lGlobalMin.Z);
+				lWriter.Write(lGlobalMin.X); // 2
+				lWriter.Write(lGlobalMin.Y); // 3
+				lWriter.Write(lGlobalMin.Z); // 4
 
-				lWriter.Write(lGlobalMax.X);
-				lWriter.Write(lGlobalMax.Y);
-				lWriter.Write(lGlobalMax.Z);
+				lWriter.Write(lGlobalMax.X); // 5
+				lWriter.Write(lGlobalMax.Y); // 6
+				lWriter.Write(lGlobalMax.Z); // 7
 
-				lWriter.Write(GlobalPosition.X);
-				lWriter.Write(GlobalPosition.Y);
-				lWriter.Write(GlobalPosition.Z);
+				// 8 to 23
+				for (int i = 0; i < 4; i++)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						lWriter.Write(Transform[i][j]);
+					}
 
-				lWriter.Write(GlobalRotation.X);
-				lWriter.Write(GlobalRotation.Y);
-				lWriter.Write(GlobalRotation.Z);
-
-				lWriter.Write(GlobalBasis.Scale.X);
-				lWriter.Write(GlobalBasis.Scale.Y);
-				lWriter.Write(GlobalBasis.Scale.Z);
+					lWriter.Write(i == 3 ? 1f : 0f);
+				}
 
 				// Material
 				RaytracedMaterial lMaterial = Material ?? raytracer.DefaultObjectMaterial;
 
-				lWriter.Write(lMaterial.color.R);
-				lWriter.Write(lMaterial.color.G);
-				lWriter.Write(lMaterial.color.B);
-				lWriter.Write(lMaterial.color.A);
+				lWriter.Write(lMaterial.color.R); // 24
+				lWriter.Write(lMaterial.color.G); // 25
+				lWriter.Write(lMaterial.color.B); // 26
+				lWriter.Write(lMaterial.color.A); // 27
 
-				lWriter.Write(lMaterial.emissive.R);
-				lWriter.Write(lMaterial.emissive.G);
-				lWriter.Write(lMaterial.emissive.B);
-				lWriter.Write(lMaterial.emissiveIntensity);
+				lWriter.Write(lMaterial.emissive.R); // 28
+				lWriter.Write(lMaterial.emissive.G); // 29
+				lWriter.Write(lMaterial.emissive.B); // 30
+				lWriter.Write(lMaterial.emissiveIntensity); // 31
 
-				// Alignment
-				lWriter.Write(0f);
-				lWriter.Write(0f);
-				lWriter.Write(0f);
+				lWriter.Write(lMaterial.smoothness); // 32
+				lWriter.Write(lMaterial.specularColor.R); // 33
+				lWriter.Write(lMaterial.specularColor.G); // 34
+				lWriter.Write(lMaterial.specularColor.B); // 35
+				lWriter.Write(lMaterial.specularProbability); // 36
+
+				// Padding
+				lWriter.Write(0f); // 37
+				lWriter.Write(0f); // 38
+				lWriter.Write(0f); // 39
 			}
 
 			return lStream.ToArray();
@@ -103,6 +106,17 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
+				// switch (Mesh)
+				// {
+				// 	case PrimitiveMesh lPrimitive:
+				// 		
+				// 		break;
+				// 	default:
+				// 		break;
+				// }
+				//
+				// Vector3[] lTriangles;
+
 				Vector3[] lFaces = Mesh.GetFaces();
 
 				for (int i = 0; i < lFaces.Length; i += 3)
@@ -114,34 +128,34 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 					Vector3 lNormal = (lPointB - lPointA).Cross(lPointC - lPointA).Normalized();
 
 					// Positions
-					lWriter.Write(lPointA.X);
-					lWriter.Write(lPointA.Y);
-					lWriter.Write(lPointA.Z);
+					lWriter.Write(lPointA.X); // 0
+					lWriter.Write(lPointA.Y); // 1
+					lWriter.Write(lPointA.Z); // 2
 
-					lWriter.Write(lPointB.X);
-					lWriter.Write(lPointB.Y);
-					lWriter.Write(lPointB.Z);
+					lWriter.Write(lPointB.X); // 3
+					lWriter.Write(lPointB.Y); // 4
+					lWriter.Write(lPointB.Z); // 5
 
-					lWriter.Write(lPointC.X);
-					lWriter.Write(lPointC.Y);
-					lWriter.Write(lPointC.Z);
+					lWriter.Write(lPointC.X); // 6
+					lWriter.Write(lPointC.Y); // 7
+					lWriter.Write(lPointC.Z); // 8
 
 					// Normals
-					lWriter.Write(lNormal.X);
-					lWriter.Write(lNormal.Y);
-					lWriter.Write(lNormal.Z);
+					lWriter.Write(lNormal.X); // 9
+					lWriter.Write(lNormal.Y); // 10
+					lWriter.Write(lNormal.Z); // 11
 
-					lWriter.Write(lNormal.X);
-					lWriter.Write(lNormal.Y);
-					lWriter.Write(lNormal.Z);
+					lWriter.Write(lNormal.X); // 12
+					lWriter.Write(lNormal.Y); // 13
+					lWriter.Write(lNormal.Z); // 14
 
-					lWriter.Write(lNormal.X);
-					lWriter.Write(lNormal.Y);
-					lWriter.Write(lNormal.Z);
+					lWriter.Write(lNormal.X); // 15
+					lWriter.Write(lNormal.Y); // 16
+					lWriter.Write(lNormal.Z); // 17
 
-					// Alignment
-					lWriter.Write(0f);
-					lWriter.Write(0f);
+					// Padding
+					lWriter.Write(0f); // 18
+					lWriter.Write(0f); // 19
 				}
 			}
 

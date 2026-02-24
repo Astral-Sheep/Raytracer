@@ -5,6 +5,10 @@ render_mode unshaded, fog_disabled, depth_test_disabled, shadows_disabled, ambie
 #include "shader_utilities.gdshaderinc"
 
 const float MAX_DISTANCE = 1e24;
+const int SPHERE_DATA_SIZE = 5;
+const int MESH_DATA_SIZE = 10;
+const int TRIANGLE_DATA_SIZE = 5;
+
 const int DISPLAY_DEFAULT = 0;
 const int DISPLAY_NORMAL = 1;
 const int DISPLAY_UNSHADED = 2;
@@ -65,6 +69,9 @@ struct Material
 	vec4 color;
 	vec3 emissive;
 	float emissive_intensity;
+	float smoothness;
+	vec3 specular_color;
+	float specular_probability;
 };
 
 struct Mesh
@@ -73,9 +80,7 @@ struct Mesh
 	int triangle_count;
 	vec3 bound_min;
 	vec3 bound_max;
-	vec3 position;
-	vec3 rotation;
-	vec3 scale;
+	mat4 transform;
 	
 	Material material;
 };
@@ -131,11 +136,11 @@ void ComputeSpheresCollision(in Ray ray, inout HitInfo hit_info, inout Material 
 	if (!draw_spheres)
 		return;
 	
-	int sphere_count = textureSize(sphere_buffer, 0).x / 3;
+	int sphere_count = textureSize(sphere_buffer, 0).x / SPHERE_DATA_SIZE;
 	
 	for (int i = 0; i < sphere_count; i++)
 	{
-		vec4 data0 = texelFetch(sphere_buffer, ivec2(i * 3, 0), 0);
+		vec4 data0 = texelFetch(sphere_buffer, ivec2(i * SPHERE_DATA_SIZE, 0), 0);
 		
 		Sphere sphere = Sphere(data0.xyz, data0.w);
 		HitInfo sphere_hit = ray_sphere(ray, sphere);
@@ -145,9 +150,12 @@ void ComputeSpheresCollision(in Ray ray, inout HitInfo hit_info, inout Material 
 		
 		hit_info = sphere_hit;
 		
-		vec4 data1 = texelFetch(sphere_buffer, ivec2(i * 3 + 1, 0), 0);
-		vec4 data2 = texelFetch(sphere_buffer, ivec2(i * 3 + 2, 0), 0);
-		material = Material(data1, data2.rgb, data2.w);
+		vec4 data1 = texelFetch(sphere_buffer, ivec2(i * SPHERE_DATA_SIZE + 1, 0), 0);
+		vec4 data2 = texelFetch(sphere_buffer, ivec2(i * SPHERE_DATA_SIZE + 2, 0), 0);
+		vec4 data3 = texelFetch(sphere_buffer, ivec2(i * SPHERE_DATA_SIZE + 3, 0), 0);
+		vec4 data4 = texelFetch(sphere_buffer, ivec2(i * SPHERE_DATA_SIZE + 4, 0), 0);
+		
+		material = Material(data1, data2.rgb, data2.w, data3.x, data3.yzw, data4.x);
 	}
 }
 
@@ -158,19 +166,19 @@ void ComputeMeshCollision(in Ray ray, in Mesh mesh, inout HitInfo hit_info, inou
 	
 	for (int j = 0; j < mesh.triangle_count; j++)
 	{
-		vec4 tdata0 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5, 0), 0);
-		vec4 tdata1 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5 + 1, 0), 0);
-		vec4 tdata2 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5 + 2, 0), 0);
-		vec4 tdata3 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5 + 3, 0), 0);
-		vec4 tdata4 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * 5 + 4, 0), 0);
+		vec4 tdata0 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * TRIANGLE_DATA_SIZE, 0), 0);
+		vec4 tdata1 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * TRIANGLE_DATA_SIZE + 1, 0), 0);
+		vec4 tdata2 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * TRIANGLE_DATA_SIZE + 2, 0), 0);
+		vec4 tdata3 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * TRIANGLE_DATA_SIZE + 3, 0), 0);
+		vec4 tdata4 = texelFetch(triangle_buffer, ivec2((mesh.triangle_start_index + j) * TRIANGLE_DATA_SIZE + 4, 0), 0);
 		
 		Triangle triangle = Triangle(
-			tdata0.xyz + mesh.position,                // Point A
-			vec3(tdata0.w, tdata1.xy) + mesh.position, // Point B
-			vec3(tdata1.zw, tdata2.x) + mesh.position, // Point C
-			tdata2.yzw,                                // Normal A
-			tdata3.xyz,                                // Normal B
-			vec3(tdata3.w, tdata4.xy)                  // Normal C
+			(mesh.transform * vec4(tdata0.xyz, 1.0)).xyz,          // Point A
+			(mesh.transform * vec4(tdata0.w, tdata1.xy, 1.0)).xyz, // Point B
+			(mesh.transform * vec4(tdata1.zw, tdata2.x, 1.0)).xyz, // Point C
+			(mesh.transform * vec4(tdata2.yzw, 0.0)).xyz,          // Normal A
+			(mesh.transform * vec4(tdata3.xyz, 0.0)).xyz,          // Normal B
+			(mesh.transform * vec4(tdata3.w, tdata4.xy, 0.0)).xyz  // Normal C
 		);
 		HitInfo triangle_hit = ray_triangle(ray, triangle);
 		
@@ -191,26 +199,30 @@ void ComputeMeshesCollision(in Ray ray, inout HitInfo hit_info, inout Material m
 	
 	for (int i = 0; i < mesh_count; i++)
 	{
-		vec4 data0 = texelFetch(mesh_buffer, ivec2(i * 7, 0), 0);
-		vec4 data1 = texelFetch(mesh_buffer, ivec2(i * 7 + 1, 0), 0);
-		vec4 data2 = texelFetch(mesh_buffer, ivec2(i * 7 + 2, 0), 0);
-		vec4 data3 = texelFetch(mesh_buffer, ivec2(i * 7 + 3, 0), 0);
-		vec4 data4 = texelFetch(mesh_buffer, ivec2(i * 7 + 4, 0), 0);
-		vec4 data5 = texelFetch(mesh_buffer, ivec2(i * 7 + 5, 0), 0);
-		vec4 data6 = texelFetch(mesh_buffer, ivec2(i * 7 + 6, 0), 0);
+		vec4 data0 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE, 0), 0);
+		vec4 data1 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 1, 0), 0);
+		vec4 data2 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 2, 0), 0);
+		vec4 data3 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 3, 0), 0);
+		vec4 data4 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 4, 0), 0);
+		vec4 data5 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 5, 0), 0);
+		vec4 data6 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 6, 0), 0);
+		vec4 data7 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 7, 0), 0);
+		vec4 data8 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 8, 0), 0);
+		vec4 data9 = texelFetch(mesh_buffer, ivec2(i * MESH_DATA_SIZE + 9, 0), 0);
 		
 		Mesh mesh = Mesh(
-			int(data0.x),            // Start index
-			int(data0.y),            // Num triangles
-			vec3(data0.zw, data1.x), // Min bound
-			data1.yzw,               // Max bound
-			data2.xyz,               // Position
-			vec3(data2.w, data3.xy), // Rotation
-			vec3(data3.zw, data4.x), // Scale
+			int(data0.x),                     // Start index
+			int(data0.y),                     // Num triangles
+			vec3(data0.zw, data1.x),          // Min bound
+			data1.yzw,                        // Max bound
+			mat4(data2, data3, data4, data5), // Transform
 			Material(
-				vec4(data4.yzw, data5.x), // Color
-				vec3(data5.yzw),          // Emissive
-				data6.x                   // Emissive intensity
+				vec4(data6.xyz, data6.w), // Color
+				vec3(data7.xyz),          // Emissive
+				data7.w,                  // Emissive intensity
+				data8.x,                  // Smoothness
+				data8.yzw,                // Specular color
+				data9.x                   // Specular probability
 			)
 		);
 		
@@ -221,7 +233,7 @@ void ComputeMeshesCollision(in Ray ray, inout HitInfo hit_info, inout Material m
 HitObject ComputeRayCollision(in Ray ray)
 {
 	HitInfo hit = HitInfo(false, MAX_DISTANCE * 2.0, vec3(0.0), vec3(0.0), false);
-	Material material = Material(vec4(0.0), vec3(0.0), 0.0);
+	Material material = Material(vec4(0.0), vec3(0.0), 0.0, 0.0, vec3(0.0), 0.0);
 	
 	ComputeSpheresCollision(ray, hit, material);
 	ComputeMeshesCollision(ray, hit, material);
@@ -245,11 +257,15 @@ vec3 Trace(in Ray ray, inout uint rng_state, inout int bounces)
 		}
 		
 		ray.origin = object.hit.point;
-		ray.dir = normalize(object.hit.normal + random_dir(rng_state));
+		vec3 diffuse_dir = normalize(object.hit.normal + random_dir(rng_state));
+		vec3 specular_dir = reflect(ray.dir, object.hit.normal);
+		bool is_specular = object.material.specular_probability >= randf(rng_state);
+		
+		ray.dir = normalize(mix(diffuse_dir, specular_dir, object.material.smoothness * float(is_specular)));
 		ray.invdir = 1.0 / ray.dir;
 		
 		light += object.material.emissive * object.material.emissive_intensity * ray_color;
-		ray_color *= object.material.color.xyz;
+		ray_color *= mix(object.material.color.xyz, object.material.specular_color, float(is_specular));
 		++bounces;
 	}
 	

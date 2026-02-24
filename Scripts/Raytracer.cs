@@ -181,6 +181,16 @@ public partial class Raytracer : PostProcessLayer
 		{
 			material = lMaterial;
 		}
+
+		VisibilityChanged += OnVisibilityChanged;
+	}
+
+	protected void OnVisibilityChanged()
+	{
+		if (Visible)
+			return;
+
+		EnableAccumulation = false;
 	}
 
 	protected override void Dispose(bool pDisposing)
