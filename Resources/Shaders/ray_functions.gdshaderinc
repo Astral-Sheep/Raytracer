@@ -1,5 +1,7 @@
 #include "shader_utilities.gdshaderinc"
 
+const float MAX_DISTANCE = 1e24;
+
 struct Ray
 {
 	vec3 origin;
@@ -17,7 +19,7 @@ struct HitInfo
 	bool front_face;
 };
 
-struct Sphere
+struct SpherePrimitive
 {
 	vec3 center;
 	float radius;
@@ -29,16 +31,28 @@ struct Box
 	vec3 extent;
 };
 
-struct Triangle
+struct TrianglePrimitive
 {
 	vec3 pointA, pointB, pointC;
 	vec3 normalA, normalB, normalC;
 	vec2 uvA, uvB, uvC;
 };
 
-HitInfo ray_sphere(in Ray ray, in Sphere sphere)
+HitInfo get_empty_hit()
 {
-	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
+	return HitInfo(
+		false, // hit
+		MAX_DISTANCE * 2.0, // dist
+		vec3(0.0), // point
+		vec3(0.0), // normal
+		vec2(0.0), // uv
+		false // front_face
+	);
+}
+
+HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
+{
+	HitInfo hit_info = get_empty_hit();
 	
 	vec3 origin = ray.origin - sphere.center;
 	float b = 2.0 * dot(ray.dir, origin);
@@ -71,7 +85,7 @@ HitInfo ray_sphere(in Ray ray, in Sphere sphere)
 	return hit_info;
 }
 
-HitInfo ray_triangle(in Ray ray, in Triangle triangle)
+HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)
 {
 	vec3 ab = triangle.pointB - triangle.pointA;
 	vec3 ac = triangle.pointC - triangle.pointA;
@@ -87,7 +101,7 @@ HitInfo ray_triangle(in Ray ray, in Triangle triangle)
 	float v = -dot(ab, dao) * inv_delta;
 	float w = 1.0 - u - v;
 	
-	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
+	HitInfo hit_info = get_empty_hit();
 	hit_info.hit = delta >= EPSILON && dist >= 0.0 && u >= 0.0 && v >= 0.0 && w >= 0.0;
 	
 	if (!hit_info.hit)
@@ -121,7 +135,7 @@ bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist
 
 HitInfo ray_plane(in Ray ray, in vec3 plane_point, in vec3 plane_normal)
 {
-	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
+	HitInfo hit_info = get_empty_hit();
 	
 	float denom = dot(ray.dir, plane_normal);
 	

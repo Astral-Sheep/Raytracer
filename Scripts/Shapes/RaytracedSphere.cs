@@ -7,8 +7,10 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 {
-	public const int SPHERE_SIZE = 5;
+	public const int SPHERE_DATA_SIZE = 1;
+	public const float INV_SPHERE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SPHERE_DATA_SIZE);
 
+	public ERaytracedShapeType Type => ERaytracedShapeType.Sphere;
 	[Export] public new RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
@@ -52,29 +54,29 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 				lWriter.Write(GlobalPosition.Z); // 2
 				lWriter.Write(Radius); // 3
 
-				// Material
-				RaytracedMaterial lMaterial = Material ?? raytracer.DefaultObjectMaterial;
-
-				lWriter.Write(lMaterial.color.R); // 4
-				lWriter.Write(lMaterial.color.G); // 5
-				lWriter.Write(lMaterial.color.B); // 6
-				lWriter.Write(lMaterial.color.A); // 7
-
-				lWriter.Write(lMaterial.emissive.R); // 8
-				lWriter.Write(lMaterial.emissive.G); // 9
-				lWriter.Write(lMaterial.emissive.B); // 10
-				lWriter.Write(lMaterial.emissiveIntensity); // 11
-
-				lWriter.Write(lMaterial.smoothness); // 12
-				lWriter.Write(lMaterial.specularColor.R); // 13
-				lWriter.Write(lMaterial.specularColor.G); // 14
-				lWriter.Write(lMaterial.specularColor.B); // 15
-				lWriter.Write(lMaterial.specularProbability); // 16
-				lWriter.Write(-1f); // 17
-
-				// Padding
-				lWriter.Write(0f); // 18
-				lWriter.Write(0f); // 19
+				// // Material
+				// RaytracedMaterial lMaterial = Material ?? raytracer.DefaultObjectMaterial;
+				//
+				// lWriter.Write(lMaterial.color.R); // 4
+				// lWriter.Write(lMaterial.color.G); // 5
+				// lWriter.Write(lMaterial.color.B); // 6
+				// lWriter.Write(lMaterial.color.A); // 7
+				//
+				// lWriter.Write(lMaterial.emissive.R); // 8
+				// lWriter.Write(lMaterial.emissive.G); // 9
+				// lWriter.Write(lMaterial.emissive.B); // 10
+				// lWriter.Write(lMaterial.emissiveIntensity); // 11
+				//
+				// lWriter.Write(lMaterial.smoothness); // 12
+				// lWriter.Write(lMaterial.specularColor.R); // 13
+				// lWriter.Write(lMaterial.specularColor.G); // 14
+				// lWriter.Write(lMaterial.specularColor.B); // 15
+				// lWriter.Write(lMaterial.specularProbability); // 16
+				// lWriter.Write(-1f); // 17
+				//
+				// // Padding
+				// lWriter.Write(0f); // 18
+				// lWriter.Write(0f); // 19
 			}
 
 			return lStream.ToArray();

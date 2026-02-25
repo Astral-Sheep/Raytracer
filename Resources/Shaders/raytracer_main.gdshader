@@ -1,6 +1,12 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled, depth_test_disabled, shadows_disabled, ambient_light_disabled;
 
+group_uniforms Debug;
+
+uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Bounces,Ray UV") = 0;
+uniform bool debug_focus_plane = false;
+uniform float max_depth = 10.0;
+
 #include "raytracer_module.gdshaderinc"
 
 const int DISPLAY_DEFAULT = 0;
@@ -10,14 +16,10 @@ const int DISPLAY_DEPTH = 3;
 const int DISPLAY_BOUNCE_COUNT = 4;
 const int DISPLAY_RAY_UV = 5;
 
+group_uniforms Rays;
+
 uniform uint ray_count = 1;
 uniform uint bounce_count = 1;
-
-group_uniforms Debug;
-
-uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Bounces,Ray UV") = 0;
-uniform bool debug_focus_plane = false;
-uniform float max_depth = 10.0;
 
 group_uniforms DepthOfField;
 
@@ -38,19 +40,6 @@ uniform vec3 ground_color: source_color;
 group_uniforms Environment.Sun;
 
 uniform sampler2D sun_buffer;
-
-group_uniforms Shapes;
-
-uniform bool draw_spheres = false;
-uniform sampler2D sphere_buffer;
-
-uniform bool draw_boxes = false;
-uniform sampler2D box_buffer;
-
-uniform bool draw_meshes = false;
-uniform sampler2D mesh_buffer;
-uniform sampler2D triangle_buffer;
-uniform sampler2DArray mesh_textures;
 
 group_uniforms _Internal.Plane;
 
@@ -119,7 +108,7 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces)
 	
 	for (int i = 0; i <= int(bounce_count); i++)
 	{
-		HitResult hit_result = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer);
+		HitResult hit_result = trace_ray_collision(ray);
 		
 		if (!hit_result.info.hit)
 		{
@@ -127,18 +116,20 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces)
 			break;
 		}
 		
+		Material material = get_material(hit_result.shape.material_index);
+		
 		ray.origin = hit_result.info.point;
 		vec3 diffuse_dir = normalize(hit_result.info.normal + random_dir(rng_state));
 		vec3 specular_dir = reflect(ray.dir, hit_result.info.normal);
-		bool is_specular = hit_result.material.specular_probability >= randf(rng_state);
+		bool is_specular = material.specular_probability >= randf(rng_state);
 		
-		ray.dir = normalize(mix(diffuse_dir, specular_dir, hit_result.material.smoothness * float(is_specular)));
+		ray.dir = normalize(mix(diffuse_dir, specular_dir, material.smoothness * float(is_specular)));
 		ray.invdir = 1.0 / ray.dir;
 		
-		light += hit_result.material.emissive * hit_result.material.emissive_intensity * ray_color;
+		light += material.emissive * material.emissive_intensity * ray_color;
 		
-		vec4 texture_color = hit_result.material.texture_index >= 0 ? texture(mesh_textures, vec3(hit_result.info.uv, float(hit_result.material.texture_index))) : vec4(1.0);
-		ray_color *= mix(hit_result.material.color.rgb * texture_color.rgb, hit_result.material.specular_color, float(is_specular));
+		vec4 texture_color = material.texture_index >= 0 ? texture(texture_buffer, vec3(hit_result.info.uv, float(material.texture_index))) : vec4(1.0);
+		ray_color *= mix(material.color.rgb * texture_color.rgb, material.specular_color, float(is_specular));
 		++bounces;
 	}
 	
@@ -174,14 +165,14 @@ void display(inout vec3 albedo, in vec2 uv, in vec3 ray_origin, in vec3 view_poi
 	else if (debug_focus_plane)
 	{
 		Ray ray = get_ray(ray_origin, view_point, screen_size, false, rng_state);
-		HitResult hit_result = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer);
+		HitResult hit_result = trace_ray_collision(ray);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
 }
 
 void debug_normal(inout vec3 albedo, in Ray ray)
 {
-	HitInfo hit_info = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer).info;
+	HitInfo hit_info = trace_ray_collision(ray).info;
 	
 	if (hit_info.hit)
 	{
@@ -196,8 +187,13 @@ void debug_normal(inout vec3 albedo, in Ray ray)
 
 void debug_unshaded(inout vec3 albedo, in Ray ray)
 {
-	HitResult hit_result = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer);
-	albedo.rgb = hit_result.material.color.xyz;
+	HitResult hit_result = trace_ray_collision(ray);
+	
+	if (hit_result.info.hit)
+	{
+		Material material = get_material(hit_result.shape.material_index);
+		albedo.rgb = material.color.xyz;
+	}
 	
 	if (debug_focus_plane)
 	{
@@ -207,7 +203,7 @@ void debug_unshaded(inout vec3 albedo, in Ray ray)
 
 void debug_depth(inout vec3 albedo, in Ray ray)
 {
-	HitResult hit_result = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer);
+	HitResult hit_result = trace_ray_collision(ray);
 	albedo.rgb = vec3(hit_result.info.dist / max_depth);
 	
 	if (debug_focus_plane)
@@ -224,7 +220,7 @@ void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 	
 	if (debug_focus_plane)
 	{
-		HitResult hit_result = trace_ray_collision(ray, draw_spheres, sphere_buffer, draw_meshes, mesh_buffer, triangle_buffer);
+		HitResult hit_result = trace_ray_collision(ray);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
 }

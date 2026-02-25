@@ -1,13 +1,67 @@
 #include "ray_functions.gdshaderinc"
 
-const int SPHERE_DATA_SIZE = 5;
-const int MESH_DATA_SIZE = 10;
-const int TRIANGLE_DATA_SIZE = 6;
+const float SHAPE_DATA_SIZE = 0.75;
+const int SPHERE_DATA_SIZE = 1;
+const int MESH_DATA_SIZE = 6;
+const int VERTEX_DATA_SIZE = 2;
+const float TRIANGLE_DATA_SIZE = 0.75;
+const int MATERIAL_DATA_SIZE = 4;
 
-const float MAX_DISTANCE = 1e24;
+const int SHAPE_TYPE_SPHERE = 0;
+const int SHAPE_TYPE_BOX = 1;
+const int SHAPE_TYPE_MESH = 2;
+
+const int MATERIAL_TYPE_DIFFUSE = 0;
+
+group_uniforms Shapes;
+
+uniform bool draw_shapes;
+uniform isampler2D shape_buffer;
+
+group_uniforms Shapes.Buffers;
+
+uniform sampler2D sphere_buffer;
+
+uniform sampler2D mesh_buffer;
+uniform sampler2D vertex_buffer;
+uniform isampler2D triangle_buffer;
+
+uniform sampler2D material_buffer;
+uniform sampler2DArray texture_buffer;
+
+struct Shape
+{
+	int type;
+	int data_index;
+	int material_index;
+};
+
+struct Mesh
+{
+	int tri_start;
+	int tri_count;
+	vec3 bound_min;
+	vec3 bound_max;
+	mat4 transform;
+};
+
+struct Vertex
+{
+	vec3 position;
+	vec3 normal;
+	vec2 uv;
+};
+
+struct Triangle
+{
+	int v0;
+	int v1;
+	int v2;
+};
 
 struct Material
 {
+	int type;
 	vec4 color;
 	vec3 emissive;
 	float emissive_intensity;
@@ -15,17 +69,6 @@ struct Material
 	vec3 specular_color;
 	float specular_probability;
 	int texture_index;
-};
-
-struct Mesh
-{
-	int triangle_start_index;
-	int triangle_count;
-	vec3 bound_min;
-	vec3 bound_max;
-	mat4 transform;
-	
-	Material material;
 };
 
 struct Sun
@@ -39,147 +82,174 @@ struct Sun
 struct HitResult
 {
 	HitInfo info;
-	Material material;
+	Shape shape;
 };
 
-void trace_spheres(in Ray ray, in sampler2D sphere_buffer, inout HitResult hit_result)
+Shape get_shape(in int index)
 {
-	int sphere_count = textureSize(sphere_buffer, 0).x / SPHERE_DATA_SIZE;
+	float shape_size_f = SHAPE_DATA_SIZE * 4.0;
+	int shape_size_i = int(floor(shape_size_f));
 	
-	for (int i = 0; i < sphere_count; i++)
+	// Texel index: i * 3 / 4
+	// Coordinate index: i * 3 % 4
+	return Shape(
+		texelFetch(shape_buffer, ivec2(int(floor(float(index) * shape_size_f * .25)), 0), 0)[(index * shape_size_i) % 4] - 1, // type
+		texelFetch(shape_buffer, ivec2(int(floor((float(index) * shape_size_f + 1.0) * .25)), 0), 0)[(index * shape_size_i + 1) % 4], // data_index
+		texelFetch(shape_buffer, ivec2(int(floor((float(index) * shape_size_f + 2.0) * .25)), 0), 0)[(index * shape_size_i + 2) % 4] // material_index
+	);
+}
+
+SpherePrimitive get_sphere(in int index)
+{
+	vec4 raw_data = texelFetch(sphere_buffer, ivec2(index * SPHERE_DATA_SIZE, 0), 0);
+	return SpherePrimitive(
+		raw_data.xyz, // center
+		raw_data.w // radius
+	);
+}
+
+Mesh get_mesh(in int index)
+{
+	vec4 raw_data0 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE, 0), 0);
+	vec4 raw_data1 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE + 1, 0), 0);
+	vec4 raw_data2 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE + 2, 0), 0);
+	vec4 raw_data3 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE + 3, 0), 0);
+	vec4 raw_data4 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE + 4, 0), 0);
+	vec4 raw_data5 = texelFetch(mesh_buffer, ivec2(index * MESH_DATA_SIZE + 5, 0), 0);
+	
+	return Mesh(
+		int(raw_data0.x), // tri_start
+		int(raw_data0.y), // tri_count
+		vec3(raw_data0.zw, raw_data1.x), // bound_min
+		raw_data1.yzw, // bound_max
+		mat4(raw_data2, raw_data3, raw_data4, raw_data5) // transform
+	);
+}
+
+Vertex get_vertex(in int index)
+{
+	vec4 raw_data0 = texelFetch(vertex_buffer, ivec2(index * VERTEX_DATA_SIZE, 0), 0);
+	vec4 raw_data1 = texelFetch(vertex_buffer, ivec2(index * VERTEX_DATA_SIZE + 1, 0), 0);
+	
+	return Vertex(
+		raw_data0.xyz, // position
+		vec3(raw_data0.w, raw_data1.xy), // normal
+		raw_data1.zw // uv
+	);
+}
+
+Triangle get_triangle(in int index)
+{
+	float triangle_size_f = TRIANGLE_DATA_SIZE * 4.0;
+	int triangle_size_i = int(floor(triangle_size_f));
+	
+	return Triangle(
+		texelFetch(triangle_buffer, ivec2(int(floor(float(index) * triangle_size_f * .25)), 0), 0)[(index * triangle_size_i) % 4], // v0
+		texelFetch(triangle_buffer, ivec2(int(floor((float(index) * triangle_size_f + 1.0) * .25)), 0), 0)[(index * triangle_size_i + 1) % 4], // v1
+		texelFetch(triangle_buffer, ivec2(int(floor((float(index) * triangle_size_f + 2.0) * .25)), 0), 0)[(index * triangle_size_i + 2) % 4] // v2
+	);
+}
+
+Material get_material(in int index)
+{
+	vec4 raw_data0 = texelFetch(material_buffer, ivec2(index * MATERIAL_DATA_SIZE, 0), 0);
+	vec4 raw_data1 = texelFetch(material_buffer, ivec2(index * MATERIAL_DATA_SIZE + 1, 0), 0);
+	vec4 raw_data2 = texelFetch(material_buffer, ivec2(index * MATERIAL_DATA_SIZE + 2, 0), 0);
+	vec4 raw_data3 = texelFetch(material_buffer, ivec2(index * MATERIAL_DATA_SIZE + 3, 0), 0);
+	
+	return Material(
+		int(raw_data0.x), // type
+		vec4(raw_data0.yzw, raw_data1.x), // color
+		raw_data1.yzw, // emissive
+		raw_data2.x, // emissive_intensity
+		raw_data2.y, // smoothness
+		vec3(raw_data2.zw, raw_data3.x), // specular_color
+		raw_data3.y, // specular_probability
+		int(raw_data3.z) // texture_index
+	);
+}
+
+TrianglePrimitive get_triangle_primitive(in Triangle triangle, in mat4 transform)
+{
+	Vertex v0 = get_vertex(triangle.v0);
+	Vertex v1 = get_vertex(triangle.v1);
+	Vertex v2 = get_vertex(triangle.v2);
+	return TrianglePrimitive(
+		(transform * vec4(v0.position, 1.0)).xyz,
+		(transform * vec4(v1.position, 1.0)).xyz,
+		(transform * vec4(v2.position, 1.0)).xyz,
+		(transform * vec4(v0.normal, 0.0)).xyz,
+		(transform * vec4(v1.normal, 0.0)).xyz,
+		(transform * vec4(v2.normal, 0.0)).xyz,
+		v0.uv,
+		v1.uv,
+		v2.uv
+	);
+}
+
+HitInfo compute_mesh_collision(in Ray ray, in Mesh mesh, in float max_dist)
+{
+	HitInfo info = get_empty_hit();
+	
+	if (!ray_box(ray, mesh.bound_min, mesh.bound_max, max_dist))
 	{
-		int sphere_index = i * SPHERE_DATA_SIZE;
-		vec4 data0 = texelFetch(sphere_buffer, ivec2(sphere_index, 0), 0);
+		return info;
+	}
+	
+	for (int i = mesh.tri_start; i < mesh.tri_start + mesh.tri_count; i++)
+	{
+		TrianglePrimitive primitive = get_triangle_primitive(get_triangle(i), mesh.transform);
+		HitInfo triangle_hit = ray_triangle(ray, primitive);
 		
-		Sphere sphere = Sphere(data0.xyz, data0.w);
-		HitInfo sphere_hit = ray_sphere(ray, sphere);
-		
-		if (!sphere_hit.hit || sphere_hit.dist >= hit_result.info.dist)
+		if (!triangle_hit.hit || triangle_hit.dist >= info.dist)
 			continue;
 		
-		hit_result.info = sphere_hit;
-		
-		vec4 data1 = texelFetch(sphere_buffer, ivec2(sphere_index + 1, 0), 0);
-		vec4 data2 = texelFetch(sphere_buffer, ivec2(sphere_index + 2, 0), 0);
-		vec4 data3 = texelFetch(sphere_buffer, ivec2(sphere_index + 3, 0), 0);
-		vec4 data4 = texelFetch(sphere_buffer, ivec2(sphere_index + 4, 0), 0);
-		
-		hit_result.material = Material(
-			data1, // color
-			data2.rgb, // emissive
-			data2.w, // emissive_intensity
-			data3.x, // smoothness
-			data3.yzw, // specular_color
-			data4.x, // specular_probability
-			int(data4.y) // texture_index
-		);
+		info = triangle_hit;
 	}
-}
-
-void compute_mesh_collision(in Ray ray, in sampler2D triangle_buffer, in Mesh mesh, inout HitResult hit_result)
-{
-	if (!ray_box(ray, mesh.bound_min, mesh.bound_max, hit_result.info.dist))
-		return;
 	
-	for (int i = mesh.triangle_start_index; i < mesh.triangle_start_index + mesh.triangle_count; i++)
-	{
-		int tri_index = i * TRIANGLE_DATA_SIZE;
-		vec4 tdata0 = texelFetch(triangle_buffer, ivec2(tri_index, 0), 0);
-		vec4 tdata1 = texelFetch(triangle_buffer, ivec2(tri_index + 1, 0), 0);
-		vec4 tdata2 = texelFetch(triangle_buffer, ivec2(tri_index + 2, 0), 0);
-		vec4 tdata3 = texelFetch(triangle_buffer, ivec2(tri_index + 3, 0), 0);
-		vec4 tdata4 = texelFetch(triangle_buffer, ivec2(tri_index + 4, 0), 0);
-		vec4 tdata5 = texelFetch(triangle_buffer, ivec2(tri_index + 5, 0), 0);
-		
-		Triangle triangle = Triangle(
-			(mesh.transform * vec4(tdata0.xyz, 1.0)).xyz,          // Point A
-			(mesh.transform * vec4(tdata0.w, tdata1.xy, 1.0)).xyz, // Point B
-			(mesh.transform * vec4(tdata1.zw, tdata2.x, 1.0)).xyz, // Point C
-			(mesh.transform * vec4(tdata2.yzw, 0.0)).xyz,          // Normal A
-			(mesh.transform * vec4(tdata3.xyz, 0.0)).xyz,          // Normal B
-			(mesh.transform * vec4(tdata3.w, tdata4.xy, 0.0)).xyz, // Normal C
-			tdata4.zw,
-			tdata5.xy,
-			tdata5.zw
-		);
-		HitInfo triangle_hit = ray_triangle(ray, triangle);
-		
-		if (!triangle_hit.hit || triangle_hit.dist > hit_result.info.dist)
-			continue;
-		
-		hit_result = HitResult(triangle_hit, mesh.material);
-	}
+	return info;
 }
 
-void trace_meshes(in Ray ray, in sampler2D mesh_buffer, in sampler2D triangle_buffer, inout HitResult hit_result)
-{
-	int mesh_count = textureSize(mesh_buffer, 0).x / MESH_DATA_SIZE;
-	
-	for (int i = 0; i < mesh_count; i++)
-	{
-		int mesh_index = i * MESH_DATA_SIZE;
-		vec4 data0 = texelFetch(mesh_buffer, ivec2(mesh_index, 0), 0);
-		vec4 data1 = texelFetch(mesh_buffer, ivec2(mesh_index + 1, 0), 0);
-		vec4 data2 = texelFetch(mesh_buffer, ivec2(mesh_index + 2, 0), 0);
-		vec4 data3 = texelFetch(mesh_buffer, ivec2(mesh_index + 3, 0), 0);
-		vec4 data4 = texelFetch(mesh_buffer, ivec2(mesh_index + 4, 0), 0);
-		vec4 data5 = texelFetch(mesh_buffer, ivec2(mesh_index + 5, 0), 0);
-		vec4 data6 = texelFetch(mesh_buffer, ivec2(mesh_index + 6, 0), 0);
-		vec4 data7 = texelFetch(mesh_buffer, ivec2(mesh_index + 7, 0), 0);
-		vec4 data8 = texelFetch(mesh_buffer, ivec2(mesh_index + 8, 0), 0);
-		vec4 data9 = texelFetch(mesh_buffer, ivec2(mesh_index + 9, 0), 0);
-		
-		Mesh mesh = Mesh(
-			int(data0.x), // triangle_start_index
-			int(data0.y), // triangle_count
-			vec3(data0.zw, data1.x), // bound_min
-			data1.yzw, // bound_max
-			mat4(data2, data3, data4, data5), // transform
-			Material(
-				data6, // color
-				vec3(data7.xyz), // emissive
-				data7.w, // emissive_intensity
-				data8.x, // smoothness
-				data8.yzw, // specular_color
-				data9.x, // specular_probability
-				int(data9.y) // texture_index
-			)
-		);
-		
-		compute_mesh_collision(ray, triangle_buffer, mesh, hit_result);
-	}
-}
-
-HitResult trace_ray_collision(in Ray ray, in bool draw_spheres, in sampler2D sphere_buffer, in bool draw_meshes, in sampler2D mesh_buffer, in sampler2D triangle_buffer)
+HitResult trace_ray_collision(in Ray ray)
 {
 	HitResult result = HitResult(
-		HitInfo(
-			false, // hit
-			MAX_DISTANCE * 2.0, // dist
-			vec3(0.0), // point
-			vec3(0.0), // normal
-			vec2(0.0), // uv
-			false // front_face
-		),
-		Material(
-			vec4(0.0), // color
-			vec3(0.0), // emissive
-			0.0, // emissive_intensity
-			0.0, // smoothness
-			vec3(0.0), // specular_color
-			0.0, // specular_probability
-			0 // texture_index
+		get_empty_hit(),
+		Shape(
+			-1, // type
+			-1, // data_index
+			-1  // material_index
 		)
 	);
 	
-	if (draw_spheres)
+	if (!draw_shapes)
 	{
-		trace_spheres(ray, sphere_buffer, result);
+		return result;
 	}
 	
-	if (draw_meshes)
+	int shape_count = int(floor(float(textureSize(shape_buffer, 0).x) / SHAPE_DATA_SIZE));
+	
+	for (int i = 0; i < shape_count; i++)
 	{
-		trace_meshes(ray, mesh_buffer, triangle_buffer, result);
+		Shape shape = get_shape(i);
+		HitInfo shape_hit = get_empty_hit();
+		
+		switch (shape.type)
+		{
+			case SHAPE_TYPE_SPHERE:
+				shape_hit = ray_sphere(ray, get_sphere(shape.data_index));
+				break;
+			case SHAPE_TYPE_MESH:
+				shape_hit = compute_mesh_collision(ray, get_mesh(shape.data_index), result.info.dist);
+				break;
+			default:
+				break;
+		}
+		
+		if (!shape_hit.hit || shape_hit.dist >= result.info.dist)
+			continue;
+		
+		result.info = shape_hit;
+		result.shape = shape;
 	}
 	
 	return result;

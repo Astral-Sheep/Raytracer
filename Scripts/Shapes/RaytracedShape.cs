@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Astral.Tools;
 using Godot;
 
@@ -6,6 +7,13 @@ namespace Astral.Raytracer;
 
 public interface IRaytracedShape : IRaytracedObject
 {
+	/// <summary>
+	/// The size of the shape's data in texels
+	/// </summary>
+	const float SHAPE_DATA_SIZE = .75f;
+	const float INV_SHAPE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SHAPE_DATA_SIZE);
+
+	ERaytracedShapeType Type { get; }
 	RaytracedMaterial Material { get; }
 }
 
@@ -13,10 +21,7 @@ public enum ERaytracedShapeType
 {
 	Sphere = 0,
 	Box = 1,
-	Cylinder = 2,
-	Disk = 3,
-	Cone = 4,
-	Mesh = 5,
+	Mesh = 2,
 }
 
 public static class RaytracedShapeExtensions
@@ -37,5 +42,20 @@ public static class RaytracedShapeExtensions
 			return;
 
 		pRemover?.Invoke(pShape, pRaytracer);
+	}
+
+	public static byte[] GetShapeBytes(this IRaytracedShape pShape, int pDataIndex, int pMaterialIndex)
+	{
+		using (MemoryStream lStream = new MemoryStream())
+		{
+			using (BinaryWriter lWriter = new BinaryWriter(lStream))
+			{
+				lWriter.Write((int)pShape.Type + 1);
+				lWriter.Write(pDataIndex);
+				lWriter.Write(pMaterialIndex);
+			}
+
+			return lStream.ToArray();
+		}
 	}
 }

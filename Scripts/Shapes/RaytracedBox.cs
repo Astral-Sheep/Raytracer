@@ -9,6 +9,7 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 {
 	public static uint ByteSize => 80;
 
+	public ERaytracedShapeType Type => ERaytracedShapeType.Box;
 	[Export] public new RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
