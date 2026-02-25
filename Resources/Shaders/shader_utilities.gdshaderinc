@@ -1,3 +1,5 @@
+const float EPSILON = 1e-6;
+
 float randf(inout uint state)
 {
 	state = state * 747796405u + 2891336453u;
@@ -166,4 +168,11 @@ float normal_randf(inout uint state)
 	float theta = 2.0 * PI * randf(state);
 	float rho = sqrt(-2.0 * log(randf(state)));
 	return rho * cos(theta);
+}
+
+vec2 rand_disk(inout uint state)
+{
+	float angle = randf(state) * 2.0 * PI;
+	vec2 disk_point = vec2(cos(angle), sin(angle));
+	return disk_point * sqrt(randf(state));
 }

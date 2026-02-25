@@ -1,4 +1,5 @@
 using System;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -12,14 +13,17 @@ public enum ERaytracedShapeType
 {
 	Sphere = 0,
 	Box = 1,
-	Mesh = 2,
+	Cylinder = 2,
+	Disk = 3,
+	Cone = 4,
+	Mesh = 5,
 }
 
 public static class RaytracedShapeExtensions
 {
 	public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer, Action<T, Raytracer> pAdder) where T : Node3D, IRaytracedObject
 	{
-		pRaytracer ??= pShape.GetTree().Root.GetNodeOrNull<Raytracer>(Raytracer.SCENE_PATH);
+		pRaytracer ??= pShape.FindNode<Raytracer>();
 
 		if (pRaytracer == null)
 			return;

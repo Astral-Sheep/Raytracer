@@ -13,25 +13,6 @@ public partial class Raytracer : PostProcessLayer
 		public bool updateRequested;
 	}
 
-	// private struct SphereData
-	// {
-	// 	public ImageTexture buffer;
-	// 	public bool updateRequested;
-	// }
-	//
-	// private struct BoxData
-	// {
-	// 	public ImageTexture buffer;
-	// 	public bool updateRequested;
-	// }
-	//
-	// private struct MeshData
-	// {
-	// 	public ImageTexture meshBuffer;
-	// 	public ImageTexture trianglesBuffer;
-	// 	public bool updateRequested;
-	// }
-
 	public const string SCENE_PATH = "Main/Camera/Raytracer";
 
 	private const string PLANE_SIZE = "plane_size";
@@ -58,6 +39,12 @@ public partial class Raytracer : PostProcessLayer
 
 			_enableAccumulation = value;
 			frameCount = 0;
+
+			if (material != null)
+			{
+				material.SetShaderParameter(ENABLE_ACCUMULATION, _enableAccumulation);
+				material.SetShaderParameter(FRAME_COUNT, frameCount);
+			}
 		}
 	}
 	protected bool _enableAccumulation = false;
@@ -182,6 +169,11 @@ public partial class Raytracer : PostProcessLayer
 			material = lMaterial;
 		}
 
+		if (!Engine.IsEditorHint())
+		{
+			EnableAccumulation = true;
+		}
+
 		VisibilityChanged += OnVisibilityChanged;
 	}
 
@@ -220,12 +212,12 @@ public partial class Raytracer : PostProcessLayer
 				return;
 
 			material = lMaterial;
+			material.SetShaderParameter(ENABLE_ACCUMULATION, EnableAccumulation);
 		}
 
 		material.SetShaderParameter(PLANE_SIZE, NearPlaneSize);
 		material.SetShaderParameter(NEAR_CLIP_PLANE, Camera.Near);
 		material.SetShaderParameter(LOCAL_TO_WORLD_MATRIX, Camera.GlobalTransform);
-		material.SetShaderParameter(ENABLE_ACCUMULATION, EnableAccumulation);
 		material.SetShaderParameter(FRAME_COUNT, frameCount);
 
 		if (print)
@@ -250,9 +242,17 @@ public partial class Raytracer : PostProcessLayer
 			RenderingServer.FramePostDraw += UpdateFrame;
 		}
 
-		if (printOnce)
+		if (print)
 		{
-			print = false;
+			for (int i = 0; i < meshes.Count; i++)
+			{
+				GD.Print($"Mesh {i + 1}: {meshes[i].Name}");
+			}
+
+			if (printOnce)
+			{
+				print = false;
+			}
 		}
 	}
 
@@ -278,7 +278,7 @@ public partial class Raytracer : PostProcessLayer
 		}
 		else
 		{
-			material.SetShaderParameter("sun_buffer", default(ImageTexture));
+			material.SetShaderParameter("sun_buffer", Variant.From<ImageTexture>(null));
 			material.SetShaderParameter("draw_suns", false);
 		}
 
@@ -307,7 +307,7 @@ public partial class Raytracer : PostProcessLayer
 		}
 		else
 		{
-			material.SetShaderParameter("sphere_buffer", default(ImageTexture));
+			material.SetShaderParameter("sphere_buffer", Variant.From<ImageTexture>(null));
 			material.SetShaderParameter("draw_spheres", false);
 		}
 
@@ -336,7 +336,7 @@ public partial class Raytracer : PostProcessLayer
 		}
 		else
 		{
-			material.SetShaderParameter("box_buffer", default(ImageTexture));
+			material.SetShaderParameter("box_buffer", Variant.From<ImageTexture>(null));
 			material.SetShaderParameter("draw_boxes", false);
 		}
 
@@ -347,6 +347,7 @@ public partial class Raytracer : PostProcessLayer
 	{
 		List<byte> lRawMeshes = new List<byte>();
 		List<byte> lRawTriangles = new List<byte>();
+		Godot.Collections.Array<Image> lMaterialTextures = new Godot.Collections.Array<Image>();
 
 		for (int i = 0; i < meshes.Count; i++)
 		{
@@ -354,8 +355,15 @@ public partial class Raytracer : PostProcessLayer
 
 			if (lMesh is { Visible: true, Mesh: not null })
 			{
-				lRawMeshes.AddRange(lMesh.GetMeshBytes(lRawTriangles.Count / (5 * 16)));
+				lRawMeshes.AddRange(lMesh.GetMeshBytes(lRawTriangles.Count / (RaytracedMesh.TRIANGLE_DATA_SIZE * 16), lMaterialTextures.Count));
 				lRawTriangles.AddRange(lMesh.GetTrianglesBytes());
+
+				RaytracedMaterial lMeshMaterial = lMesh.Material ?? DefaultObjectMaterial;
+
+				if (lMeshMaterial?.texture != null)
+				{
+					lMaterialTextures.Add(lMeshMaterial.texture.GetImage());
+				}
 			}
 		}
 
@@ -363,14 +371,23 @@ public partial class Raytracer : PostProcessLayer
 		{
 			SetBufferData(meshData.buffers[0], lRawMeshes.ToArray());
 			SetBufferData(meshData.buffers[1], lRawTriangles.ToArray());
+
 			material.SetShaderParameter("mesh_buffer", meshData.buffers[0]);
 			material.SetShaderParameter("triangle_buffer", meshData.buffers[1]);
 			material.SetShaderParameter("draw_meshes", true);
+
+			if (lMaterialTextures.Count > 0)
+			{
+				Texture2DArray lTextures = new Texture2DArray();
+				lTextures.CreateFromImages(lMaterialTextures);
+				material.SetShaderParameter("mesh_textures", lTextures);
+			}
 		}
 		else
 		{
-			material.SetShaderParameter("mesh_buffer", default(ImageTexture));
-			material.SetShaderParameter("triangle_buffer", default(ImageTexture));
+			material.SetShaderParameter("mesh_buffer", Variant.From<ImageTexture>(null));
+			material.SetShaderParameter("triangle_buffer", Variant.From<ImageTexture>(null));
+			material.SetShaderParameter("mesh_textures", Variant.From<Texture2DArray>(null));
 			material.SetShaderParameter("draw_meshes", false);
 		}
 

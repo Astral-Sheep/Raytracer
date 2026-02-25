@@ -1,6 +1,6 @@
 [gd_resource type="ShaderMaterial" format=3 uid="uid://cl641r1oxya40"]
 
-[ext_resource type="Shader" uid="uid://4fral60610dw" path="res://Resources/Shaders/raytracer.gdshader" id="1_pe60f"]
+[ext_resource type="Shader" uid="uid://4fral60610dw" path="res://Resources/Shaders/raytracer_main.gdshader" id="1_pe60f"]
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_pe60f"]
 

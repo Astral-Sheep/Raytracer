@@ -13,6 +13,7 @@ struct HitInfo
 	float dist;
 	vec3 point;
 	vec3 normal;
+	vec2 uv;
 	bool front_face;
 };
 
@@ -32,11 +33,12 @@ struct Triangle
 {
 	vec3 pointA, pointB, pointC;
 	vec3 normalA, normalB, normalC;
+	vec2 uvA, uvB, uvC;
 };
 
 HitInfo ray_sphere(in Ray ray, in Sphere sphere)
 {
-	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), false);
+	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
 	
 	vec3 origin = ray.origin - sphere.center;
 	float b = 2.0 * dot(ray.dir, origin);
@@ -85,8 +87,8 @@ HitInfo ray_triangle(in Ray ray, in Triangle triangle)
 	float v = -dot(ab, dao) * inv_delta;
 	float w = 1.0 - u - v;
 	
-	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), false);
-	hit_info.hit = delta >= 1e-6 && dist >= 0.0 && u >= 0.0 && v >= 0.0 && w >= 0.0;
+	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
+	hit_info.hit = delta >= EPSILON && dist >= 0.0 && u >= 0.0 && v >= 0.0 && w >= 0.0;
 	
 	if (!hit_info.hit)
 	{
@@ -96,6 +98,12 @@ HitInfo ray_triangle(in Ray ray, in Triangle triangle)
 	hit_info.dist = dist;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = normalize(triangle.normalA * w + triangle.normalB * u + triangle.normalC * v);
+	hit_info.uv = triangle.uvA * w + triangle.uvB * u + triangle.uvC * v;
+	
+	//float face_direction = sign(dot(ray.dir, hit_info.normal));
+	//hit_info.normal *= -face_direction;
+	//hit_info.front_face = face_direction < 0.0;
+	
 	return hit_info;
 }
 
@@ -109,6 +117,32 @@ bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist
 	float tfar = min(min(t1.x, t1.y), t1.z);
 	
 	return tnear <= tfar && tfar >= 0.0 && tnear < min_dist;
+}
+
+HitInfo ray_plane(in Ray ray, in vec3 plane_point, in vec3 plane_normal)
+{
+	HitInfo hit_info = HitInfo(false, 0.0, vec3(0.0), vec3(0.0), vec2(0.0), false);
+	
+	float denom = dot(ray.dir, plane_normal);
+	
+	if (denom < EPSILON)
+	{
+		return hit_info;
+	}
+	
+	float dist = dot(plane_point - ray.origin, plane_normal) / denom;
+	
+	if (dist < 0.0)
+	{
+		return hit_info;
+	}
+	
+	hit_info.hit = true;
+	hit_info.dist = dist;
+	hit_info.point = ray.origin + ray.dir * hit_info.dist;
+	hit_info.normal = plane_normal;
+	hit_info.front_face = true;
+	return hit_info;
 }
 
 vec3 random_dir(inout uint state)

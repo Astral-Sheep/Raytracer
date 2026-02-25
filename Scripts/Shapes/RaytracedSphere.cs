@@ -7,6 +7,8 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 {
+	public const int SPHERE_SIZE = 5;
+
 	[Export] public new RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
@@ -68,9 +70,9 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 				lWriter.Write(lMaterial.specularColor.G); // 14
 				lWriter.Write(lMaterial.specularColor.B); // 15
 				lWriter.Write(lMaterial.specularProbability); // 16
+				lWriter.Write(-1f); // 17
 
 				// Padding
-				lWriter.Write(0f); // 17
 				lWriter.Write(0f); // 18
 				lWriter.Write(0f); // 19
 			}
