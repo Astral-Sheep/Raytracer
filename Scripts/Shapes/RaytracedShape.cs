@@ -50,6 +50,7 @@ public static class RaytracedShapeExtensions
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
+				// No padding needed: the shader handles the data as an array of ints and not an array of texels
 				lWriter.Write((int)pShape.Type + 1);
 				lWriter.Write(pDataIndex);
 				lWriter.Write(pMaterialIndex);

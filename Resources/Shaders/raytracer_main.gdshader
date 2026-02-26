@@ -3,9 +3,10 @@ render_mode unshaded, fog_disabled, depth_test_disabled, shadows_disabled, ambie
 
 group_uniforms Debug;
 
-uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Bounces,Ray UV") = 0;
+uniform int display_type: hint_enum("Default,Normal,Unshaded,Depth,Bounces,Tests,Ray UV") = 0;
 uniform bool debug_focus_plane = false;
 uniform float max_depth = 10.0;
+uniform int max_shape_tests = 10;
 
 #include "raytracer_module.gdshaderinc"
 
@@ -14,7 +15,10 @@ const int DISPLAY_NORMAL = 1;
 const int DISPLAY_UNSHADED = 2;
 const int DISPLAY_DEPTH = 3;
 const int DISPLAY_BOUNCE_COUNT = 4;
-const int DISPLAY_RAY_UV = 5;
+const int DISPLAY_TESTS = 5;
+const int DISPLAY_RAY_UV = 6;
+
+const int SUN_DATA_SIZE = 2;
 
 group_uniforms Rays;
 
@@ -69,6 +73,21 @@ Ray get_ray(in vec3 origin, in vec3 view_point, in float screen_width, in bool d
 	return ray;
 }
 
+Sun get_sun(in int index)
+{
+	ivec2 buffer_size = textureSize(sun_buffer, 0);
+	index *= SUN_DATA_SIZE;
+	
+	vec4 data0 = texelFetch(sun_buffer, ivec2(index % buffer_size.x, index / buffer_size.x), 0);
+	vec4 data1 = texelFetch(sun_buffer, ivec2((index + 1) % buffer_size.x, (index + 1) / buffer_size.x), 0);
+	return Sun(
+		data0.xyz,
+		data0.w,
+		data1.rgb,
+		data1.a
+	);
+}
+
 vec3 get_environment_light(in Ray ray)
 {
 	if (!enable_environment)
@@ -101,7 +120,7 @@ vec3 get_environment_light(in Ray ray)
 	return mix(ground_color, sky_gradient, ground_ratio) + sun_color * sun_mask;
 }
 
-vec3 trace(in Ray ray, inout uint rng_state, inout int bounces)
+vec3 trace(in Ray ray, inout uint rng_state, inout int bounces, inout int test_count)
 {
 	vec3 ray_color = vec3(1.0);
 	vec3 light = vec3(0.0);
@@ -109,6 +128,7 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces)
 	for (int i = 0; i <= int(bounce_count); i++)
 	{
 		HitResult hit_result = trace_ray_collision(ray);
+		test_count += hit_result.shape_test_count;
 		
 		if (!hit_result.info.hit)
 		{
@@ -147,10 +167,11 @@ void display(inout vec3 albedo, in vec2 uv, in vec3 ray_origin, in vec3 view_poi
 {
 	vec3 light = vec3(0.0);
 	int bounces = 0;
+	int test_count = 0;
 	
 	for (int i = 0; i < int(ray_count); i++)
 	{
-		light += trace(get_ray(ray_origin, view_point, screen_size, true, rng_state), rng_state, bounces);
+		light += trace(get_ray(ray_origin, view_point, screen_size, true, rng_state), rng_state, bounces, test_count);
 	}
 	
 	light /= float(ray_count);
@@ -215,7 +236,8 @@ void debug_depth(inout vec3 albedo, in Ray ray)
 void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
 	int bounces = 0;
-	trace(ray, rng_state, bounces);
+	int test_count = 0;
+	trace(ray, rng_state, bounces, test_count);
 	albedo.rgb = mix(vec3(0.0), vec3(1.0), float(bounces) / float(bounce_count + 1u));
 	
 	if (debug_focus_plane)
@@ -223,6 +245,19 @@ void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 		HitResult hit_result = trace_ray_collision(ray);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
+}
+
+void debug_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
+{
+	int bounces = 0;
+	int test_count = 0;
+	
+	for (int i = 0; i < int(ray_count); i++)
+	{
+		trace(ray, rng_state, bounces, test_count);
+	}
+	
+	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(test_count) / float(max_shape_tests)), vec3(1.0, 0.0, 0.0), float(test_count >= max_shape_tests));
 }
 
 void debug_ray_uv(inout vec3 albedo, in Ray ray)
@@ -257,6 +292,9 @@ void fragment()
 			break;
 		case DISPLAY_BOUNCE_COUNT:
 			debug_bounce_count(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
+			break;
+		case DISPLAY_TESTS:
+			debug_tests(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
 			break;
 		case DISPLAY_RAY_UV:
 			debug_ray_uv(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));

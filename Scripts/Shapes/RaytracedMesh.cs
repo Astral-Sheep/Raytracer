@@ -111,20 +111,28 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 
 					for (int j = 0; j < lVertexArray.Count; j++)
 					{
-						Vector3 lVertex = lVertexArray[j].As<Vector3>();
-						Vector3 lNormal = lNormalArray[j].As<Vector3>();
-						Vector2 lUV = lUVArray[j].As<Vector2>();
 
+						Vector3 lVertex = lVertexArray[j].As<Vector3>();
 						lVertexWriter.Write(lVertex.X);
 						lVertexWriter.Write(lVertex.Y);
 						lVertexWriter.Write(lVertex.Z);
 
+						Vector3 lNormal = lNormalArray[j].As<Vector3>();
 						lVertexWriter.Write(lNormal.X);
 						lVertexWriter.Write(lNormal.Y);
 						lVertexWriter.Write(lNormal.Z);
 
-						lVertexWriter.Write(lUV.X);
-						lVertexWriter.Write(lUV.Y);
+						if (lUVArray is { Count: > 0 })
+						{
+							Vector2 lUV = lUVArray[j].As<Vector2>();
+							lVertexWriter.Write(lUV.X);
+							lVertexWriter.Write(lUV.Y);
+						}
+						else
+						{
+							lVertexWriter.Write(0f);
+							lVertexWriter.Write(0f);
+						}
 					}
 
 					GArray lTriangleArray = lSurface[(int)Mesh.ArrayType.Index].As<GArray>();

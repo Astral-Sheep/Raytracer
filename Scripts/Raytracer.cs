@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Godot;
@@ -74,10 +73,6 @@ public partial class Raytracer : PostProcessLayer
 	private bool updateRequested = false;
 
 	private (DataBuffer data, bool updateRequested) sunBuffer = (DataBuffer.New("sun_buffer"), false);
-	// 	= new ShaderData {
-	// 	buffers = [ ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.Rgbaf)) ],
-	// 	updateRequested = false,
-	// };
 
 	protected uint frameCount = 0;
 
@@ -166,6 +161,12 @@ public partial class Raytracer : PostProcessLayer
 		VisibilityChanged += OnVisibilityChanged;
 	}
 
+	public override void _ExitTree()
+	{
+		base._ExitTree();
+		VisibilityChanged -= OnVisibilityChanged;
+	}
+
 	protected void OnVisibilityChanged()
 	{
 		if (Visible)
@@ -188,7 +189,7 @@ public partial class Raytracer : PostProcessLayer
 	{
 		base._Process(pDelta);
 
-		if (Mesh == null || Camera == null)
+		if (Mesh == null || Camera == null || !Visible)
 			return;
 
 #if DEBUG
@@ -204,29 +205,32 @@ public partial class Raytracer : PostProcessLayer
 			material.SetShaderParameter(ENABLE_ACCUMULATION, EnableAccumulation);
 		}
 
-		material.SetShaderParameter(PLANE_SIZE, NearPlaneSize);
-		material.SetShaderParameter(NEAR_CLIP_PLANE, Camera.Near);
-		material.SetShaderParameter(LOCAL_TO_WORLD_MATRIX, Camera.GlobalTransform);
-		material.SetShaderParameter(FRAME_COUNT, frameCount);
-
-		if (print)
-		{
-			GD.Print(
-				$"Shader parameters:\n" +
-				$"Plane size: {NearPlaneSize}\n" +
-				$"Near clip plane: {Camera.Near}\n" +
-				$"Local to world matrix: {Camera.GlobalTransform}\n"
-			);
-		}
-
-		UpdateShapes();
-		UpdateSuns();
-
-		++frameCount;
-
+		// Accumulation disables objects update
 		if (EnableAccumulation)
 		{
+			material.SetShaderParameter(FRAME_COUNT, frameCount);
+			++frameCount;
+
 			RenderingServer.FramePostDraw += UpdateFrame;
+		}
+		else
+		{
+			material.SetShaderParameter(PLANE_SIZE, NearPlaneSize);
+			material.SetShaderParameter(NEAR_CLIP_PLANE, Camera.Near);
+			material.SetShaderParameter(LOCAL_TO_WORLD_MATRIX, Camera.GlobalTransform);
+
+			if (print)
+			{
+				GD.Print(
+					$"Shader parameters:\n" +
+					$"Plane size: {NearPlaneSize}\n" +
+					$"Near clip plane: {Camera.Near}\n" +
+					$"Local to world matrix: {Camera.GlobalTransform}\n"
+				);
+			}
+
+			UpdateShapes();
+			UpdateSuns();
 		}
 
 		if (print)
@@ -259,6 +263,18 @@ public partial class Raytracer : PostProcessLayer
 
 		UpdateSpheres(lImportedMaterials, lImportedTextures);
 		UpdateMeshes(lImportedMeshes, lImportedMaterials, lImportedTextures);
+
+		if (print)
+		{
+			GD.Print(
+				$"Shapes: {shapeBuffer.RawData.Count} bytes\n" +
+				$"Spheres: {sphereBuffer.RawData.Count} bytes\n" +
+				$"Meshes: {meshBuffer.RawData.Count} bytes\n" +
+				$"Vertices: {vertexBuffer.RawData.Count} bytes\n" +
+				$"Triangles: {triangleBuffer.RawData.Count} bytes\n" +
+				$"Materials: {materialBuffer.RawData.Count} bytes"
+			);
+		}
 
 		shapeBuffer.SendData(material);
 		sphereBuffer.SendData(material);
@@ -366,11 +382,8 @@ public partial class Raytracer : PostProcessLayer
 
 		if (sunBuffer.data.RawData.Count > 0)
 		{
-			// SetBufferData(sunBuffer.data.Buffer[0], lRawData.ToArray());
 			material.SetShaderParameter("draw_suns", true);
 			sunBuffer.data.SendData(material);
-			// material.SetShaderParameter("sun_buffer", sunBuffer.buffers[0]);
-			// material.SetShaderParameter("draw_suns", true);
 		}
 		else
 		{
@@ -381,125 +394,6 @@ public partial class Raytracer : PostProcessLayer
 		sunBuffer.updateRequested = sunBuffer.data.RawData.Count > 0;
 	}
 
-	// protected void UpdateSpheres()
-	// {
-	// 	List<byte> lRawData = new List<byte>();
-	//
-	// 	for (int i = 0; i < spheres.Count; i++)
-	// 	{
-	// 		RaytracedSphere lSphere = spheres[i];
-	//
-	// 		if (lSphere is { Visible: true })
-	// 		{
-	// 			lRawData.AddRange(lSphere.GetBytes());
-	// 		}
-	// 	}
-	//
-	// 	if (lRawData.Count > 0)
-	// 	{
-	// 		SetBufferData(sphereData.buffers[0], lRawData.ToArray());
-	// 		material.SetShaderParameter("sphere_buffer", sphereData.buffers[0]);
-	// 		material.SetShaderParameter("draw_spheres", true);
-	// 	}
-	// 	else
-	// 	{
-	// 		material.SetShaderParameter("sphere_buffer", Variant.From<ImageTexture>(null));
-	// 		material.SetShaderParameter("draw_spheres", false);
-	// 	}
-	//
-	// 	sphereData.updateRequested = lRawData.Count > 0;
-	// }
-	//
-	// protected void UpdateBoxes()
-	// {
-	// 	List<byte> lRawData = new List<byte>();
-	//
-	// 	for (int i = 0; i < boxes.Count; i++)
-	// 	{
-	// 		RaytracedBox lBox = boxes[i];
-	//
-	// 		if (lBox is { Visible: true })
-	// 		{
-	// 			lRawData.AddRange(lBox.GetBytes());
-	// 		}
-	// 	}
-	//
-	// 	if (lRawData.Count > 0)
-	// 	{
-	// 		SetBufferData(boxData.buffers[0], lRawData.ToArray());
-	// 		material.SetShaderParameter("box_buffer", boxData.buffers[0]);
-	// 		material.SetShaderParameter("draw_boxes", true);
-	// 	}
-	// 	else
-	// 	{
-	// 		material.SetShaderParameter("box_buffer", Variant.From<ImageTexture>(null));
-	// 		material.SetShaderParameter("draw_boxes", false);
-	// 	}
-	//
-	// 	boxData.updateRequested = lRawData.Count > 0;
-	// }
-	//
-	// protected void UpdateMeshes()
-	// {
-	// 	List<byte> lRawMeshes = new List<byte>();
-	// 	List<byte> lRawTriangles = new List<byte>();
-	// 	Godot.Collections.Array<Image> lMaterialTextures = new Godot.Collections.Array<Image>();
-	// 	float lInvTriangleTexelSize = 1f / (RaytracedMesh.TRIANGLE_DATA_SIZE * TEXEL_SIZE);
-	//
-	// 	for (int i = 0; i < meshes.Count; i++)
-	// 	{
-	// 		RaytracedMesh lMesh = meshes[i];
-	//
-	// 		if (lMesh is { Visible: true, Mesh: not null })
-	// 		{
-	// 			lRawMeshes.AddRange(lMesh.GetMeshBytes(Mathf.FloorToInt(lRawTriangles.Count * lInvTriangleTexelSize), lMaterialTextures.Count));
-	// 			lRawTriangles.AddRange(lMesh.GetTrianglesBytes());
-	//
-	// 			RaytracedMaterial lMeshMaterial = lMesh.Material ?? DefaultObjectMaterial;
-	//
-	// 			if (lMeshMaterial?.texture != null)
-	// 			{
-	// 				lMaterialTextures.Add(lMeshMaterial.texture.GetImage());
-	// 			}
-	// 		}
-	// 	}
-	//
-	// 	if (lRawMeshes.Count > 0)
-	// 	{
-	// 		SetBufferData(meshData.buffers[0], lRawMeshes.ToArray());
-	// 		SetBufferData(meshData.buffers[1], lRawTriangles.ToArray());
-	//
-	// 		material.SetShaderParameter("mesh_buffer", meshData.buffers[0]);
-	// 		material.SetShaderParameter("triangle_buffer", meshData.buffers[1]);
-	// 		material.SetShaderParameter("draw_meshes", true);
-	//
-	// 		if (lMaterialTextures.Count > 0)
-	// 		{
-	// 			Texture2DArray lTextures = new Texture2DArray();
-	// 			lTextures.CreateFromImages(lMaterialTextures);
-	// 			material.SetShaderParameter("mesh_textures", lTextures);
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		material.SetShaderParameter("mesh_buffer", Variant.From<ImageTexture>(null));
-	// 		material.SetShaderParameter("triangle_buffer", Variant.From<ImageTexture>(null));
-	// 		material.SetShaderParameter("mesh_textures", Variant.From<Texture2DArray>(null));
-	// 		material.SetShaderParameter("draw_meshes", false);
-	// 	}
-	//
-	// 	if (print)
-	// 	{
-	// 		GD.Print(
-	// 			$"Meshes: {meshes.Count}\n" +
-	// 			$"Raw mesh data: {lRawMeshes.Count} bytes ({lRawMeshes.Count / (7 * 16)} meshes)\n" +
-	// 			$"Raw triangle data: {lRawTriangles.Count} bytes ({lRawTriangles.Count / (5 * 16)} triangles)\n"
-	// 		);
-	// 	}
-	//
-	// 	meshData.updateRequested = lRawMeshes.Count > 0;
-	// }
-
 	protected void UpdateFrame()
 	{
 		if (Camera == null)
@@ -507,13 +401,5 @@ public partial class Raytracer : PostProcessLayer
 
 		material.SetShaderParameter(LAST_FRAME_TEXTURE, Camera.GetViewport().GetTexture());
 		RenderingServer.FramePostDraw -= UpdateFrame;
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	protected void SetBufferData(ImageTexture pBuffer, byte[] pRawData)
-	{
-		Image lImage = pBuffer.Image;
-		lImage.SetData(pRawData.Length / 16, 1, false, Image.Format.Rgbaf, pRawData);
-		pBuffer.SetImage(lImage);
 	}
 }
