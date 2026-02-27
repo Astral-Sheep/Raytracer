@@ -71,7 +71,7 @@ metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 size = Vector2(0.21861711, 0.1414682)
 orientation = 2
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_jw32o"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_tda23"]
 
 [sub_resource type="Image" id="Image_jw32o"]
 data = {
@@ -138,11 +138,11 @@ shader_parameter/vertex_buffer_size = Vector2i(0, 0)
 shader_parameter/triangle_buffer_size = Vector2i(0, 0)
 shader_parameter/material_buffer = SubResource("ImageTexture_50glp")
 shader_parameter/material_buffer_size = Vector2i(8, 4)
-shader_parameter/ray_count = 10
+shader_parameter/ray_count = 30
 shader_parameter/bounce_count = 5
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 50.0
-shader_parameter/focus_plane_distance_offset = 3.745
+shader_parameter/focus_plane_distance_offset = 2.79
 shader_parameter/enable_environment = true
 shader_parameter/horizon_color = Color(1, 1, 1, 1)
 shader_parameter/zenith_color = Color(0.5681632, 0.70066094, 0.88788533, 1)
@@ -152,7 +152,7 @@ shader_parameter/plane_size = Vector2(0.21645258, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 shader_parameter/enable_accumulation = false
-shader_parameter/last_frame_texture = SubResource("ViewportTexture_jw32o")
+shader_parameter/last_frame_texture = SubResource("ViewportTexture_tda23")
 shader_parameter/frame_count = 0
 
 [node name="Main" type="Node" unique_id=451867634]
@@ -287,7 +287,8 @@ transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.8793
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(-0.96034086, 0.112550184, -0.25507268, -0.1254347, 0.6426399, 0.7558316, 0.24898648, 0.75785625, -0.60304195, -1.7269425, 3.04094, -5.2178707)
+transform = Transform3D(-0.8875287, 0.1863954, -0.42136407, -0.21264273, 0.6455911, 0.7334791, 0.40874746, 0.7405834, -0.53334594, -2.0299497, 2.5782044, -5.247529)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_pbw6q")

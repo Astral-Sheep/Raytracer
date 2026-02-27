@@ -170,7 +170,7 @@ image = SubResource("Image_wy8hn")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_np66m"]
 render_priority = 1
 shader = ExtResource("3_dcpae")
-shader_parameter/display_type = 5
+shader_parameter/display_type = 0
 shader_parameter/debug_focus_plane = false
 shader_parameter/max_depth = 10.0
 shader_parameter/max_shape_tests = 2000
@@ -188,7 +188,7 @@ shader_parameter/triangle_buffer_size = Vector2i(19, 2)
 shader_parameter/material_buffer = SubResource("ImageTexture_vae6c")
 shader_parameter/material_buffer_size = Vector2i(11, 4)
 shader_parameter/ray_count = 1
-shader_parameter/bounce_count = 3
+shader_parameter/bounce_count = 1
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 0.0
 shader_parameter/focus_plane_distance_offset = 2.85
@@ -300,7 +300,7 @@ transform = Transform3D(0.9998772, -0.002761403, 0.015427993, 0, 0.98435676, 0.1
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=808641750]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.99992377, 0.0025285622, -0.012831584, -0.0023042464, 0.9998495, 0.017467156, 0.012873852, -0.017436147, 0.9997672, 0.012091095, 0.005656004, 0.5253053)
+transform = Transform3D(0.9993482, -0.010729244, 0.03322281, 0.0061507965, 0.99084073, 0.1349538, -0.03436457, -0.13466758, 0.9903, 0.023449425, 0.27594137, 0.01380825)
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_dcpae")

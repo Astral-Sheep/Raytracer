@@ -159,7 +159,7 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces, inout int test_c
 float get_focus_plane_dist(in Ray ray)
 {
 	vec3 camera_forward = (local_to_world_matrix * vec4(0.0, 0.0, -1.0, 0.0)).xyz;
-	HitInfo hit_info = ray_plane(ray, ray.origin + camera_forward * (near_clip_plane + focus_plane_distance_offset), (local_to_world_matrix * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
+	HitInfo hit_info = ray_plane(ray, ray.origin + camera_forward * (near_clip_plane + focus_plane_distance_offset), -camera_forward);
 	return mix(MAX_DISTANCE, hit_info.dist, float(hit_info.hit));
 }
 

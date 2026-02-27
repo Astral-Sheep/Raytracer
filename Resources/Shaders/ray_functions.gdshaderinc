@@ -139,7 +139,7 @@ HitInfo ray_plane(in Ray ray, in vec3 plane_point, in vec3 plane_normal)
 	
 	float denom = dot(ray.dir, plane_normal);
 	
-	if (denom < EPSILON)
+	if (denom > -EPSILON)
 	{
 		return hit_info;
 	}
