@@ -195,34 +195,34 @@ Material get_material(in int index)
 	);
 }
 
-TrianglePrimitive get_triangle_primitive(in Triangle triangle, in mat4 transform)
+TrianglePrimitive get_triangle_primitive(in Triangle triangle)
 {
 	Vertex v0 = get_vertex(triangle.v0);
 	Vertex v1 = get_vertex(triangle.v1);
 	Vertex v2 = get_vertex(triangle.v2);
-	//return TrianglePrimitive(
-		//v0.position,
-		//v1.position,
-		//v2.position,
-		//v0.normal,
-		//v1.normal,
-		//v2.normal,
-		//v0.uv,
-		//v1.uv,
-		//v2.uv
-	//);
-	
 	return TrianglePrimitive(
-		(transform * vec4(v0.position, 1.0)).xyz,
-		(transform * vec4(v1.position, 1.0)).xyz,
-		(transform * vec4(v2.position, 1.0)).xyz,
-		(transform * vec4(v0.normal, 0.0)).xyz,
-		(transform * vec4(v1.normal, 0.0)).xyz,
-		(transform * vec4(v2.normal, 0.0)).xyz,
+		v0.position,
+		v1.position,
+		v2.position,
+		v0.normal,
+		v1.normal,
+		v2.normal,
 		v0.uv,
 		v1.uv,
 		v2.uv
 	);
+	
+	//return TrianglePrimitive(
+		//(transform * vec4(v0.position, 1.0)).xyz,
+		//(transform * vec4(v1.position, 1.0)).xyz,
+		//(transform * vec4(v2.position, 1.0)).xyz,
+		//(transform * vec4(v0.normal, 0.0)).xyz,
+		//(transform * vec4(v1.normal, 0.0)).xyz,
+		//(transform * vec4(v2.normal, 0.0)).xyz,
+		//v0.uv,
+		//v1.uv,
+		//v2.uv
+	//);
 }
 
 HitInfo compute_mesh_collision(in Ray ray, in Mesh mesh, in float max_dist, inout int tri_test_count)
@@ -234,21 +234,23 @@ HitInfo compute_mesh_collision(in Ray ray, in Mesh mesh, in float max_dist, inou
 		return info;
 	}
 	
-	//mat4 world_to_local = inverse(mesh.transform);
-	//Ray local_ray;
-	//local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
-	//local_ray.dir = (world_to_local * vec4(ray.dir, 0.0)).xyz;
-	//local_ray.invdir = 1.0 / local_ray.dir;
+	mat4 world_to_local = inverse(mesh.transform);
+	Ray local_ray;
+	local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
+	local_ray.dir = (world_to_local * vec4(ray.dir, 0.0)).xyz;
+	local_ray.invdir = 1.0 / local_ray.dir;
 	
 	for (int i = mesh.tri_start; i < mesh.tri_start + mesh.tri_count; i++)
 	{
-		TrianglePrimitive primitive = get_triangle_primitive(get_triangle(i), mesh.transform);
-		HitInfo triangle_hit = ray_triangle(ray, primitive);
+		TrianglePrimitive primitive = get_triangle_primitive(get_triangle(i));
+		HitInfo triangle_hit = ray_triangle(local_ray, primitive);
 		++tri_test_count;
 		
 		if (!triangle_hit.hit || triangle_hit.dist >= info.dist)
 			continue;
 		
+		triangle_hit.point = (mesh.transform * vec4(triangle_hit.point, 1.0)).xyz;
+		triangle_hit.normal = normalize((mesh.transform * vec4(triangle_hit.normal, 0.0)).xyz);
 		info = triangle_hit;
 	}
 	
