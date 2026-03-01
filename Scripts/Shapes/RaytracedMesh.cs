@@ -57,8 +57,8 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
 				// Mesh shape
-				lWriter.Write((float)pTriangleStartIndex); // 0
-				lWriter.Write((float)(Mesh.GetFaces().Length / 3)); // 1
+				lWriter.Write(pTriangleStartIndex); // 0
+				lWriter.Write(Mesh.GetFaces().Length / 3); // 1
 
 				Aabb lBounds = GetAabb();
 				Vector3 lGlobalMin = ToGlobal(lBounds.Position);
@@ -130,8 +130,8 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 						}
 						else
 						{
-							lVertexWriter.Write(0f);
-							lVertexWriter.Write(0f);
+							lVertexWriter.Write(0);
+							lVertexWriter.Write(0);
 						}
 					}
 

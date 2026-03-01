@@ -221,7 +221,6 @@ raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere5" type="CSGSphere3D" parent="." unique_id=1656668991 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5842867, 3.7649856, -4.5840936)
-visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 5.0
@@ -287,7 +286,7 @@ transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.8793
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(-0.8875287, 0.1863954, -0.42136407, -0.21264273, 0.6455911, 0.7334791, 0.40874746, 0.7405834, -0.53334594, -2.0299497, 2.5782044, -5.247529)
+transform = Transform3D(-0.8875221, 0.16220988, -0.43126088, -0.21264522, 0.6861373, 0.69569886, 0.4087519, 0.70915556, -0.5744721, -1.28554, 2.39874, -5.124138)
 visible = false
 cast_shadow = 0
 gi_mode = 0

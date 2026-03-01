@@ -136,8 +136,8 @@ Mesh get_mesh(in int index)
 	vec4 raw_data5 = texelFetch(mesh_buffer, ivec2((index + 5) % mesh_buffer_size.x, (index + 5) / mesh_buffer_size.x), 0);
 	
 	return Mesh(
-		int(raw_data0.x), // tri_start
-		int(raw_data0.y), // tri_count
+		floatBitsToInt(raw_data0.x), // tri_start
+		floatBitsToInt(raw_data0.y), // tri_count
 		vec3(raw_data0.zw, raw_data1.x), // bound_min
 		raw_data1.yzw, // bound_max
 		mat4(raw_data2, raw_data3, raw_data4, raw_data5) // transform
@@ -184,14 +184,14 @@ Material get_material(in int index)
 	vec4 raw_data3 = texelFetch(material_buffer, ivec2((index + 3) % material_buffer_size.x, (index + 3) / material_buffer_size.x), 0);
 	
 	return Material(
-		int(raw_data0.x), // type
+		floatBitsToInt(raw_data0.x), // type
 		vec4(raw_data0.yzw, raw_data1.x), // color
 		raw_data1.yzw, // emissive
 		raw_data2.x, // emissive_intensity
 		raw_data2.y, // smoothness
 		vec3(raw_data2.zw, raw_data3.x), // specular_color
 		raw_data3.y, // specular_probability
-		int(raw_data3.z) // texture_index
+		floatBitsToInt(raw_data3.z) // texture_index
 	);
 }
 
@@ -211,18 +211,6 @@ TrianglePrimitive get_triangle_primitive(in Triangle triangle)
 		v1.uv,
 		v2.uv
 	);
-	
-	//return TrianglePrimitive(
-		//(transform * vec4(v0.position, 1.0)).xyz,
-		//(transform * vec4(v1.position, 1.0)).xyz,
-		//(transform * vec4(v2.position, 1.0)).xyz,
-		//(transform * vec4(v0.normal, 0.0)).xyz,
-		//(transform * vec4(v1.normal, 0.0)).xyz,
-		//(transform * vec4(v2.normal, 0.0)).xyz,
-		//v0.uv,
-		//v1.uv,
-		//v2.uv
-	//);
 }
 
 HitInfo compute_mesh_collision(in Ray ray, in Mesh mesh, in float max_dist, inout int tri_test_count)

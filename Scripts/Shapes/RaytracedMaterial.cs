@@ -24,7 +24,7 @@ public partial class RaytracedMaterial : Resource
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write((float)type); // 0
+				lWriter.Write((int)type); // 0
 
 				lWriter.Write(color.R); // 1
 				lWriter.Write(color.G); // 2
@@ -42,10 +42,10 @@ public partial class RaytracedMaterial : Resource
 				lWriter.Write(specularColor.B); // 12
 				lWriter.Write(specularProbability); // 13
 
-				lWriter.Write(texture == null ? -1f : (float)pTextureIndex); // 14
+				lWriter.Write(texture == null ? -1 : pTextureIndex); // 14
 
 				// Padding
-				lWriter.Write(0f); // 15
+				lWriter.Write(0); // 15
 			}
 
 			return lStream.ToArray();
