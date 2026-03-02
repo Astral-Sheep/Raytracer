@@ -11,7 +11,7 @@
 |      Field     | Type | Size |
 |:--------------:|:----:|:----:|
 |*bound_min*     |`vec3`|12    |
-|*bound_max*     |`int` |12    |
+|*bound_max*     |`vec3`|12    |
 |*child0*        |`int` |4     |
 |*child1*        |`int` |4     |
 
