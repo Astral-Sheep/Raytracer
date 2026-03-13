@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -24,14 +25,15 @@ public partial class RaytracedMaterial : Godot.Material
 	public Material GetShaderData(Dictionary<Texture2D, int> pTextureMap)
 	{
 		return new Material {
-			type = (int)type,
+			type = (byte)type,
+			// The GPU will probably explode if I give it more than 32768 textures so it should be safe to cast to short
+			textureIndex = (short)(Convert.ToInt16(pTextureMap.GetValueOrDefault(texture, -1)) - (short.MinValue + 1)),
 			color = fromVariant(color),
 			emissive = fromVariant(emissive).rgb,
 			emissiveIntensity = emissiveIntensity,
 			smoothness = smoothness,
 			specularColor = fromVariant(specularColor).rgb,
 			specularProbability = specularProbability,
-			textureIndex = pTextureMap.GetValueOrDefault(texture, -1),
 		};
 	}
 
@@ -70,7 +72,7 @@ public partial class RaytracedMaterial : Godot.Material
 	}
 }
 
-public enum EMaterialType
+public enum EMaterialType : byte
 {
 	Opaque = 0,
 }

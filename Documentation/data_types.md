@@ -11,8 +11,8 @@
 ## Bounding Volume (1 texel)
 |    Field    | Type | Size |
 |:-----------:|:----:|:----:|
-|*child0*     |`int` |4    |
-|*child1*     |`int` |4    |
+|*child_start*|`int` |4    |
+|*child_count*|`int` |4    |
 |*padding*    |`∅`   |8    |
 
 ## Sphere (2 texels)
@@ -30,6 +30,7 @@
 |*tri_count*     |`int` |4     |
 |*transform*     |`mat4`|64    |
 |*material_index*|`int` |4     |
+|*padding*       |`∅`   |4     |
 
 ## MeshVertex (2 texels)
 |  Field   | Type | Size |
@@ -45,15 +46,15 @@
 |*v1*      |`int` |4     |
 |*v2*      |`int` |4     |
 
-## Material (4 texels with 4 bytes padding)
+## Material (1 texel)
 |         Field        | Type  | Size |
 |:--------------------:|:-----:|:----:|
-|*type*                |`int`  |4     |
-|*color*               |`vec4` |16    |
-|*emissive*            |`vec3` |12    |
-|*emissive_intensity*  |`float`|4     |
-|*smoothness*          |`float`|4     |
-|*specular_color*      |`vec3` |12    |
-|*specular_probability*|`float`|4     |
-|*texture_index*       |`int`  |4     |
+|*type*                |`byte` |1     |
+|*texture_index*       |`short`|2     |
+|*color*               |`byte3`|3     |
+|*emissive*            |`byte3`|3     |
+|*emissive_intensity*  |`half` |2     |
+|*smoothness*          |`byte` |1     |
+|*specular_color*      |`byte3`|3     |
+|*specular_probability*|`byte` |1     |
 

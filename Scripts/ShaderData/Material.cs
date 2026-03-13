@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -10,23 +12,23 @@ public struct Material : IShaderData
 {
 	public static Material Default => new Material {
 		type = (int)EMaterialType.Opaque,
-		color = new vec4(1f),
-		emissive = new vec3(0f),
-		emissiveIntensity = 0f,
-		smoothness = 0f,
-		specularColor = new vec3(0f),
-		specularProbability = 0f,
-		textureIndex = -1,
+		textureIndex = short.MinValue,
+		color = new Vec3<byte>(255),
+		emissive = new Vec3<byte>(0),
+		emissiveIntensity = (Half)0f,
+		smoothness = 0,
+		specularColor = new Vec3<byte>(0),
+		specularProbability = 0,
 	};
 
-	public int type;
-	public vec4 color;
-	public vec3 emissive;
-	public float emissiveIntensity;
-	public float smoothness;
-	public vec3 specularColor;
-	public float specularProbability;
-	public int textureIndex;
+	public byte type;
+	public short textureIndex;
+	public Vec3<byte> color;
+	public Vec3<byte> emissive;
+	public Half emissiveIntensity;
+	public byte smoothness;
+	public Vec3<byte> specularColor;
+	public byte specularProbability;
 
 	public byte[] GetBytes()
 	{
@@ -34,32 +36,31 @@ public struct Material : IShaderData
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write(type);
+				lWriter.Write(type); // 1: 1 byte
+				lWriter.Write(textureIndex); // 3: 2 bytes
 
-				lWriter.Write(color.x);
-				lWriter.Write(color.y);
-				lWriter.Write(color.z);
-				lWriter.Write(color.w);
+				lWriter.Write(color.x); // 4: 1 byte
+				lWriter.Write(color.y); // 5: 1 byte
+				lWriter.Write(color.z); // 6: 1 byte
 
-				lWriter.Write(emissive.x);
-				lWriter.Write(emissive.y);
-				lWriter.Write(emissive.z);
-				lWriter.Write(emissiveIntensity);
+				lWriter.Write(emissive.x); // 7: 1 byte
+				lWriter.Write(emissive.y); // 8: 1 byte
+				lWriter.Write(emissive.z); // 9: 1 byte
+				lWriter.Write(emissiveIntensity); // 11: 2 bytes
 
-				lWriter.Write(smoothness);
-				lWriter.Write(specularColor.x);
-				lWriter.Write(specularColor.y);
-				lWriter.Write(specularColor.z);
-				lWriter.Write(specularProbability);
+				lWriter.Write(smoothness); // 12: 1 byte
+				lWriter.Write(specularColor.x); // 13: 1 byte
+				lWriter.Write(specularColor.y); // 14: 1 byte
+				lWriter.Write(specularColor.z); // 15: 1 byte
+				lWriter.Write(specularProbability); // 16: 1 byte
 
-				lWriter.Write(textureIndex);
-
-				int lSize = GetMarshalSize();
-
-				if (lSize % Raytracer.TEXEL_SIZE != 0)
-				{
-					lWriter.Write(new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE]);
-				}
+				// Uncomment this if the struct is not properly aligned
+				// int lSize = GetMarshalSize();
+				//
+				// if (lSize % Raytracer.TEXEL_SIZE != 0)
+				// {
+				// 	lWriter.Write(new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE]);
+				// }
 			}
 
 			return lStream.ToArray();
@@ -95,16 +96,20 @@ public struct Material : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static Material FromBaseMaterial3D(BaseMaterial3D pMaterial, Dictionary<Texture2D, int> pTextureMap)
 	{
+		uint lAlbedo = pMaterial.AlbedoColor.ToRgba32();
+		uint lEmissive = pMaterial.Emission.ToRgba32();
+		uint lSpecularColor = pMaterial.AlbedoColor.Lerp(Colors.White, 1f - pMaterial.Metallic).ToRgba32();
+
 		return new Material {
 			// TODO: handle other types like transparent materials
 			type = (int)EMaterialType.Opaque,
-			color = fromVariant(pMaterial.AlbedoColor),
-			emissive = pMaterial.EmissionEnabled ? fromVariant(pMaterial.Emission).rgb : new vec3(0f),
-			emissiveIntensity = pMaterial.EmissionIntensity,
-			smoothness = 1f - pMaterial.Roughness,
-			specularColor = mix(new vec3(1f), fromVariant(pMaterial.AlbedoColor).rgb, pMaterial.Metallic),
-			specularProbability = pMaterial.MetallicSpecular,
-			textureIndex = pTextureMap.GetValueOrDefault(pMaterial.AlbedoTexture, -1),
+			textureIndex = (short)(pTextureMap.GetValueOrDefault(pMaterial.AlbedoTexture, -1) + (short.MinValue + 1)),
+			color = fromUVariant(lAlbedo).rgb,
+			emissive = pMaterial.EmissionEnabled ? fromUVariant(lEmissive).rgb : new Vec3<byte>(0),
+			emissiveIntensity = (Half)pMaterial.EmissionIntensity,
+			smoothness = (byte)Mathf.RoundToInt(Mathf.Clamp(1f - pMaterial.Roughness, 0f, 1f) * 255f),
+			specularColor = fromUVariant(lSpecularColor).rgb,
+			specularProbability = (byte)Mathf.RoundToInt(Mathf.Clamp(pMaterial.MetallicSpecular, 0, 1) * 255f),
 		};
 	}
 }

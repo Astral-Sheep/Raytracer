@@ -26,6 +26,12 @@ public static class ShaderConvertions
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ushort toVariant(Vec2<byte> vec)
+	{
+		return (ushort)(vec.x | (vec.y << 8));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector3 toVariant(vec3 vec)
 	{
 		return new Vector3(vec.x, vec.y, vec.z);
@@ -41,6 +47,12 @@ public static class ShaderConvertions
 	public static Vector3I toVariant(uvec3 vec)
 	{
 		return new Vector3I((int)vec.x, (int)vec.y, (int)vec.z);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uint toVariant(Vec3<byte> vec)
+	{
+		return (uint)(vec.x | (vec.y << 8) | (vec.z << 16));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,6 +98,12 @@ public static class ShaderConvertions
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uint toVariant(Vec4<byte> vec)
+	{
+		return (uint)(vec.x | (vec.y << 8) | (vec.z << 16) | (vec.w << 24));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static vec2 fromVariant(Vector2 vec)
 	{
 		return new vec2(vec.X, vec.Y);
@@ -101,6 +119,12 @@ public static class ShaderConvertions
 	public static uvec2 fromUVariant(Vector2I vec)
 	{
 		return new uvec2((uint)vec.X, (uint)vec.Y);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vec2<byte> fromUVariant(ushort vec)
+	{
+		return new Vec2<byte>((byte)(vec & 0xFF), (byte)((vec & 0xFF00) >> 8));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,5 +185,11 @@ public static class ShaderConvertions
 	public static uvec4 fromUVariant(Vector4I vec)
 	{
 		return new uvec4((uint)vec.X, (uint)vec.Y, (uint)vec.Z, (uint)vec.W);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vec4<byte> fromUVariant(uint vec)
+	{
+		return new Vec4<byte>((byte)(vec & 0xFF), (byte)((vec & 0xFF00) >> 8), (byte)((vec & 0xFF0000) >> 16), (byte)((vec & 0xFF000000) >> 24));
 	}
 }

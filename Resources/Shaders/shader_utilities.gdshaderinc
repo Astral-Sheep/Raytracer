@@ -1,4 +1,12 @@
 const float EPSILON = 1e-6;
+const float INV_255 = 1.0 / 255.0;
+
+const lowp int MIN_BYTE = -128;
+const lowp int MAX_BYTE = 127;
+const mediump int MIN_SHORT = -32768;
+const mediump int MAX_SHORT = 32767;
+const highp int MIN_INT = -2147483648;
+const highp int MAX_INT = 2147483647;
 
 float randf(inout uint state)
 {

@@ -21,7 +21,7 @@ const float MESH_DATA_SIZE = 4.75;
 const int VERTEX_DATA_SIZE = 2;
 const float TRIANGLE_DATA_SIZE = 0.75;
 
-const int MATERIAL_DATA_SIZE = 4;
+const int MATERIAL_DATA_SIZE = 1;
 
 // ===== MATERIAL TYPES =====
 const int MAT_OPAQUE = 0;
@@ -44,7 +44,7 @@ uniform ivec2 triangle_buffer_size;
 
 group_uniforms Shapes.Materials;
 
-uniform sampler2D material_buffer;
+uniform isampler2D material_buffer;
 uniform ivec2 material_buffer_size;
 uniform sampler2DArray texture_buffer;
 
@@ -97,13 +97,13 @@ struct MeshTriangle
 struct Material
 {
 	int type;
-	vec4 color;
+	int texture_index;
+	vec3 color;
 	vec3 emissive;
 	float emissive_intensity;
 	float smoothness;
 	vec3 specular_color;
 	float specular_probability;
-	int texture_index;
 };
 
 struct HitResult
@@ -130,35 +130,31 @@ Shape get_shape(in int index)
 Material get_material(in int index)
 {
 	index *= MATERIAL_DATA_SIZE;
-	
-	vec4 raw_data0 = get_buffer_texel(material_buffer, index, material_buffer_size);
-	vec4 raw_data1 = get_buffer_texel(material_buffer, index + 1, material_buffer_size);
-	vec4 raw_data2 = get_buffer_texel(material_buffer, index + 2, material_buffer_size);
-	vec4 raw_data3 = get_buffer_texel(material_buffer, index + 3, material_buffer_size);
+	ivec4 raw_bytes = get_buffer_texel(material_buffer, index, material_buffer_size);
 	
 	return Material(
-		floatBitsToInt(raw_data0.x), // type
-		vec4(raw_data0.yzw, raw_data1.x), // color
-		raw_data1.yzw, // emissive
-		raw_data2.x, // emissive_intensity
-		raw_data2.y, // smoothness
-		vec3(raw_data2.zw, raw_data3.x), // specular_color
-		raw_data3.y, // specular_probability
-		floatBitsToInt(raw_data3.z) // texture_index
+		raw_bytes.x & 0xFF, // type
+		(raw_bytes.x & 0xFFFF00) >> 8 - (MIN_SHORT + 1), // texture_index
+		vec3(float((raw_bytes.x & 0xFF000000) >> 24) * INV_255, float(raw_bytes.y & 0xFF) * INV_255, float((raw_bytes.y & 0xFF00) >> 8) * INV_255), // color
+		vec3(float((raw_bytes.y & 0xFF0000) >> 16) * INV_255, float((raw_bytes.y & 0xFF000000) >> 24) * INV_255, float(raw_bytes.z & 0xFF) * INV_255), // emissive
+		intBitsToFloat((raw_bytes.z & 0xFFFF00) >> 8), // emissive_intensity
+		float((raw_bytes.z & 0xFF000000) >> 24) * INV_255, // smoothness
+		vec3(float(raw_bytes.w & 0xFF) * INV_255, float((raw_bytes.w & 0xFF00) >> 8) * INV_255, float((raw_bytes.w & 0xFF0000) >> 16) * INV_255), // specular_color
+		float((raw_bytes.w & 0xFF000000) >> 24) * INV_255 // specular_probability
 	);
 }
 
 Material get_empty_material()
 {
 	return Material(
+		0,
 		-1,
-		vec4(0.0),
+		vec3(0.0),
 		vec3(0.0),
 		0.0,
 		0.0,
 		vec3(0.0),
-		0.0,
-		-1
+		0.0
 	);
 }
 
