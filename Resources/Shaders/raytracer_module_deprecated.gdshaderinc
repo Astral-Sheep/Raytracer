@@ -38,10 +38,25 @@ uniform ivec2 material_buffer_size;
 
 uniform sampler2DArray texture_buffer;
 
+// 0.5 texels
 struct Shape
 {
 	int type;
 	int data_index;
+};
+
+// 2 texels
+struct BoundingVolume
+{
+	vec3 bound_min;
+	vec3 bound_max;
+	int child0;
+	int child1;
+};
+
+struct Sphere
+{
+	SpherePrimitive primitive;
 	int material_index;
 };
 
@@ -52,6 +67,7 @@ struct Mesh
 	vec3 bound_min;
 	vec3 bound_max;
 	mat4 transform;
+	int material_index;
 };
 
 struct Vertex
@@ -88,14 +104,32 @@ struct Sun
 	float energy;
 };
 
+// DEPRECATED
+
+struct Shape_Deprecated
+{
+	int type;
+	int data_index;
+	int material_index;
+};
+
+struct Mesh_Deprecated
+{
+	int tri_start;
+	int tri_count;
+	vec3 bound_min;
+	vec3 bound_max;
+	mat4 transform;
+};
+
 struct HitResult
 {
 	HitInfo info;
-	Shape shape;
+	Shape_Deprecated shape;
 	int shape_test_count;
 };
 
-Shape get_shape(in int index)
+Shape_Deprecated get_shape(in int index)
 {
 	float shape_size_f = SHAPE_DATA_SIZE * 4.0;
 	int shape_size_i = int(floor(shape_size_f));
@@ -106,7 +140,7 @@ Shape get_shape(in int index)
 	int idx2 = int(floor((float(index) * shape_size_f + 2.0) * 0.25));
 	
 	// Coordinate index: (i * 3 + j) % 4
-	return Shape(
+	return Shape_Deprecated(
 		texelFetch(shape_buffer, ivec2(idx0 % shape_buffer_size.x, idx0 / shape_buffer_size.x), 0)[(index * shape_size_i) % 4] - 1, // type
 		texelFetch(shape_buffer, ivec2(idx1 % shape_buffer_size.x, idx1 / shape_buffer_size.x), 0)[(index * shape_size_i + 1) % 4], // data_index
 		texelFetch(shape_buffer, ivec2(idx2 % shape_buffer_size.x, idx2 / shape_buffer_size.x), 0)[(index * shape_size_i + 2) % 4]  // material_index
@@ -124,7 +158,7 @@ SpherePrimitive get_sphere(in int index)
 	);
 }
 
-Mesh get_mesh(in int index)
+Mesh_Deprecated get_mesh(in int index)
 {
 	index *= MESH_DATA_SIZE;
 	
@@ -135,7 +169,7 @@ Mesh get_mesh(in int index)
 	vec4 raw_data4 = texelFetch(mesh_buffer, ivec2((index + 4) % mesh_buffer_size.x, (index + 4) / mesh_buffer_size.x), 0);
 	vec4 raw_data5 = texelFetch(mesh_buffer, ivec2((index + 5) % mesh_buffer_size.x, (index + 5) / mesh_buffer_size.x), 0);
 	
-	return Mesh(
+	return Mesh_Deprecated(
 		floatBitsToInt(raw_data0.x), // tri_start
 		floatBitsToInt(raw_data0.y), // tri_count
 		vec3(raw_data0.zw, raw_data1.x), // bound_min
@@ -213,7 +247,7 @@ TrianglePrimitive get_triangle_primitive(in Triangle triangle)
 	);
 }
 
-HitInfo compute_mesh_collision(in Ray ray, in Mesh mesh, in float max_dist, inout int tri_test_count)
+HitInfo compute_mesh_collision(in Ray ray, in Mesh_Deprecated mesh, in float max_dist, inout int tri_test_count)
 {
 	HitInfo info = get_empty_hit();
 	
@@ -249,7 +283,7 @@ HitResult trace_ray_collision(in Ray ray)
 {
 	HitResult result = HitResult(
 		get_empty_hit(), // info
-		Shape(
+		Shape_Deprecated(
 			-1, // type
 			-1, // data_index
 			-1  // material_index
@@ -257,37 +291,37 @@ HitResult trace_ray_collision(in Ray ray)
 		0 // shape_test_count
 	);
 	
-	if (!draw_shapes)
-	{
-		return result;
-	}
-	
-	int shape_count = int(floor(float(shape_buffer_size.x * shape_buffer_size.y) / SHAPE_DATA_SIZE));
-	
-	for (int i = 0; i < shape_count; i++)
-	{
-		Shape shape = get_shape(i);
-		HitInfo shape_hit = get_empty_hit();
-		
-		switch (shape.type)
-		{
-			case SHAPE_TYPE_SPHERE:
-				shape_hit = ray_sphere(ray, get_sphere(shape.data_index));
-				++result.shape_test_count;
-				break;
-			case SHAPE_TYPE_MESH:
-				shape_hit = compute_mesh_collision(ray, get_mesh(shape.data_index), result.info.dist, result.shape_test_count);
-				break;
-			default:
-				break;
-		}
-		
-		if (!shape_hit.hit || shape_hit.dist >= result.info.dist)
-			continue;
-		
-		result.info = shape_hit;
-		result.shape = shape;
-	}
+	//if (!draw_shapes)
+	//{
+		//return result;
+	//}
+	//
+	//int shape_count = int(floor(float(shape_buffer_size.x * shape_buffer_size.y) / SHAPE_DATA_SIZE));
+	//
+	//for (int i = 0; i < shape_count; i++)
+	//{
+		//Shape_Deprecated shape = get_shape(i);
+		//HitInfo shape_hit = get_empty_hit();
+		//
+		//switch (shape.type)
+		//{
+			//case SHAPE_TYPE_SPHERE:
+				//shape_hit = ray_sphere(ray, get_sphere(shape.data_index));
+				//++result.shape_test_count;
+				//break;
+			//case SHAPE_TYPE_MESH:
+				//shape_hit = compute_mesh_collision(ray, get_mesh(shape.data_index), result.info.dist, result.shape_test_count);
+				//break;
+			//default:
+				//break;
+		//}
+		//
+		//if (!shape_hit.hit || shape_hit.dist >= result.info.dist)
+			//continue;
+		//
+		//result.info = shape_hit;
+		//result.shape = shape;
+	//}
 	
 	return result;
 }

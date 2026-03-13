@@ -1,13 +1,16 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Astral.Tools;
 
 namespace Astral.Raytracer;
 
-public struct BoundingVolume : IShaderData
+public struct Mesh : IShaderData
 {
-	public int child0;
-	public int child1;
+	public int triStart;
+	public int triCount;
+	public mat4 transform;
+	public int materialIndex;
 
 	public byte[] GetBytes()
 	{
@@ -15,8 +18,18 @@ public struct BoundingVolume : IShaderData
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write(child0);
-				lWriter.Write(child1);
+				lWriter.Write(triStart);
+				lWriter.Write(triCount);
+
+				for (int i = 0; i < 4; i++)
+				{
+					for (int j = 0; j < 4; j++)
+					{
+						lWriter.Write(transform[i, j]);
+					}
+				}
+
+				lWriter.Write(materialIndex);
 
 				int lSize = GetMarshalSize();
 
@@ -33,7 +46,7 @@ public struct BoundingVolume : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMarshalSize()
 	{
-		return Marshal.SizeOf<BoundingVolume>();
+		return Marshal.SizeOf<Mesh>();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

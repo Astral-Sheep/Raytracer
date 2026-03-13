@@ -7,6 +7,21 @@ namespace Astral.Raytracer;
 [Tool, GlobalClass]
 public partial class Raytracer : PostProcessLayer
 {
+	public struct BoundingBox
+	{
+		public vec3 min;
+		public vec3 max;
+		public readonly List<IRaytracedShape> childShapes;
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public BoundingBox()
+		{
+			min = new vec3(0f);
+			max = new vec3(0f);
+			childShapes = new List<IRaytracedShape>();
+		}
+	}
+
 	public const int TEXEL_SIZE = 16;
 	public const string SCENE_PATH = "Main/Camera/Raytracer";
 
@@ -229,7 +244,7 @@ public partial class Raytracer : PostProcessLayer
 				);
 			}
 
-			UpdateShapes();
+			// UpdateShapes();
 			UpdateSuns();
 		}
 
@@ -249,7 +264,7 @@ public partial class Raytracer : PostProcessLayer
 
 	protected void UpdateShapes()
 	{
-		Dictionary<Mesh, int> lImportedMeshes = new Dictionary<Mesh, int>();
+		Dictionary<Godot.Mesh, int> lImportedMeshes = new Dictionary<Godot.Mesh, int>();
 		Dictionary<RaytracedMaterial, int> lImportedMaterials = new Dictionary<RaytracedMaterial, int>();
 		Dictionary<Texture2D, int> lImportedTextures = new Dictionary<Texture2D, int>();
 
@@ -310,7 +325,7 @@ public partial class Raytracer : PostProcessLayer
 		}
 	}
 
-	protected void UpdateMeshes(Dictionary<Mesh, int> pImportedMeshes, Dictionary<RaytracedMaterial, int> pImportedMaterials, Dictionary<Texture2D, int> pImportedTextures)
+	protected void UpdateMeshes(Dictionary<Godot.Mesh, int> pImportedMeshes, Dictionary<RaytracedMaterial, int> pImportedMaterials, Dictionary<Texture2D, int> pImportedTextures)
 	{
 		for (int i = 0; i < meshes.Count; i++)
 		{

@@ -25,12 +25,6 @@ struct SpherePrimitive
 	float radius;
 };
 
-struct Box
-{
-	vec3 center;
-	vec3 extent;
-};
-
 struct TrianglePrimitive
 {
 	vec3 pointA, pointB, pointC;

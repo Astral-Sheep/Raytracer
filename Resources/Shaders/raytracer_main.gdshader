@@ -8,7 +8,7 @@ uniform bool debug_focus_plane = false;
 uniform float max_depth = 10.0;
 uniform int max_shape_tests = 10;
 
-#include "raytracer_module.gdshaderinc"
+#include "raytracer_module_deprecated.gdshaderinc"
 
 const int DISPLAY_DEFAULT = 0;
 const int DISPLAY_NORMAL = 1;

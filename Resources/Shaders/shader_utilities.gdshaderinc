@@ -176,3 +176,28 @@ vec2 rand_disk(inout uint state)
 	vec2 disk_point = vec2(cos(angle), sin(angle));
 	return disk_point * sqrt(randf(state));
 }
+
+float length_squared(vec2 x)
+{
+	return x.x * x.x + x.y * x.y;
+}
+
+float length_squared(vec3 x)
+{
+	return x.x * x.x + x.y * x.y + x.z * x.z;
+}
+
+float length_squared(vec4 x)
+{
+	return x.x * x.x + x.y * x.y + x.z * x.z + x.w * x.w;
+}
+
+vec4 get_buffer_texel(sampler2D buffer, int texel_index, ivec2 buffer_size)
+{
+	return texelFetch(buffer, ivec2(texel_index % buffer_size.x, texel_index / buffer_size.x), 0);
+}
+
+ivec4 get_buffer_texel(isampler2D buffer, int texel_index, ivec2 buffer_size)
+{
+	return texelFetch(buffer, ivec2(texel_index % buffer_size.x, texel_index / buffer_size.x), 0);
+}

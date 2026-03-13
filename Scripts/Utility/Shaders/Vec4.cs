@@ -1230,6 +1230,168 @@ public struct Vec4<T> where T : unmanaged, INumber<T>
 	public Vec3<T> aab => new Vec3<T>(a, a, b);
 	public Vec3<T> aaa => new Vec3<T>(a, a, a);
 
+	public Vec2<T> rg
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(r, g);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			r = value.x;
+			g = value.y;
+		}
+	}
+
+	public Vec2<T> rb
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(r, b);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			r = value.x;
+			b = value.y;
+		}
+	}
+
+	public Vec2<T> gr
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(g, r);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			g = value.x;
+			r = value.y;
+		}
+	}
+
+	public Vec2<T> gb
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(g, b);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			g = value.x;
+			b = value.y;
+		}
+	}
+
+	public Vec2<T> br
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(b, r);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			b = value.x;
+			r = value.y;
+		}
+	}
+
+	public Vec2<T> bg
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec2<T>(b, g);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			b = value.x;
+			g = value.y;
+		}
+	}
+
+	public Vec3<T> rgb
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(r, g, b);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			r = value.x;
+			g = value.y;
+			b = value.z;
+		}
+	}
+
+	public Vec3<T> rbg
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(r, b, g);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			r = value.x;
+			b = value.y;
+			g = value.z;
+		}
+	}
+
+	public Vec3<T> grb
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(g, r, b);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			g = value.x;
+			r = value.y;
+			b = value.z;
+		}
+	}
+
+	public Vec3<T> gbr
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(g, b, r);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			g = value.x;
+			b = value.y;
+			r = value.z;
+		}
+	}
+
+	public Vec3<T> brg
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(b, r, g);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			b = value.x;
+			r = value.y;
+			g = value.z;
+		}
+	}
+
+	public Vec3<T> bgr
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => new Vec3<T>(b, g, r);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set
+		{
+			b = value.x;
+			g = value.y;
+			r = value.z;
+		}
+	}
+
 	#endregion //COLOR
 
 	#region TEXTURE

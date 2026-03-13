@@ -2153,7 +2153,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool equal(float a, float b)
 	{
-		return a == b;
+		return abs(a - b) < Mathf.Epsilon;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2171,7 +2171,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec2 equal(vec2 a, vec2 b)
 	{
-		return new bvec2(a.x == b.x, a.y == b.y);
+		return new bvec2(equal(a.x, b.x), equal(a.y, b.y));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2189,7 +2189,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec3 equal(vec3 a, vec3 b)
 	{
-		return new bvec3(a.x == b.x, a.y == b.y, a.z == b.z);
+		return new bvec3(equal(a.x, b.x), equal(a.y, b.y), equal(a.z, b.z));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2207,7 +2207,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec4 equal(vec4 a, vec4 b)
 	{
-		return new bvec4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w);
+		return new bvec4(equal(a.x, b.x), equal(a.y, b.y), equal(a.z, b.z), equal(a.w, b.w));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2225,7 +2225,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool notEqual(float a, float b)
 	{
-		return a != b;
+		return !equal(a, b);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2243,7 +2243,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec2 notEqual(vec2 a, vec2 b)
 	{
-		return new bvec2(a.x != b.x, a.y != b.y);
+		return new bvec2(notEqual(a.x, b.x), notEqual(a.y, b.y));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2261,7 +2261,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec3 notEqual(vec3 a, vec3 b)
 	{
-		return new bvec3(a.x != b.x, a.y != b.y, a.z != b.z);
+		return new bvec3(notEqual(a.x, b.x), notEqual(a.y, b.y), notEqual(a.z, b.z));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2279,7 +2279,7 @@ public static class GlobalShaderFunctions
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bvec4 notEqual(vec4 a, vec4 b)
 	{
-		return new bvec4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w);
+		return new bvec4(notEqual(a.x, b.x), notEqual(a.y, b.y), notEqual(a.z, b.z), notEqual(a.w, b.w));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

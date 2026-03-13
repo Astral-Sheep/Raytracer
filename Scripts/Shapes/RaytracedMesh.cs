@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Godot;
 
@@ -10,7 +12,7 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 {
-	public const int MESH_DATA_SIZE = 6;
+	public const int MESH_DATA_SIZE = 5;
 	public const int VERTEX_DATA_SIZE = 2;
 	public const float TRIANGLE_DATA_SIZE = .75f;
 
@@ -19,6 +21,22 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 	public const float INV_TRIANGLE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * TRIANGLE_DATA_SIZE);
 
 	public ERaytracedShapeType Type => ERaytracedShapeType.Mesh;
+
+	public ShapeBounds Bounds
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get
+		{
+			Aabb lBounds = GetAabb();
+			return new ShapeBounds {
+				min = fromVariant(ToGlobal(lBounds.Position)),
+				max = fromVariant(ToGlobal(lBounds.End)),
+			};
+		}
+	}
+
+	public byte[] BVHData { get; protected set; }
+
 	[Export] public RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
@@ -48,6 +66,34 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 	{
 		base._ExitTree();
 		RemoveFromRaytracer();
+	}
+
+	public Mesh[] GetShaderData(Dictionary<Godot.Material, int> pMaterialMap, int pTriangleOffset = 0)
+	{
+		if (Mesh == null)
+		{
+			return Array.Empty<Mesh>();
+		}
+
+		Mesh[] lSurfaces = new Mesh[Mesh.GetSurfaceCount()];
+
+		for (int i = 0; i < Mesh.GetSurfaceCount(); i++)
+		{
+			GArray lSurface = Mesh.SurfaceGetArrays(i);
+			GArray lTriangles = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
+			int lTriCount = lTriangles.Count / 3;
+
+			lSurfaces[i] = new Mesh {
+				triStart = pTriangleOffset,
+				triCount = lTriCount,
+				transform = GlobalTransform,
+				materialIndex = pMaterialMap.GetValueOrDefault(GetSurfaceOverrideMaterial(i), 0),
+			};
+
+			pTriangleOffset += lTriCount;
+		}
+
+		return lSurfaces;
 	}
 
 	public byte[] GetMeshBytes(int pTriangleStartIndex = 0)
@@ -105,9 +151,9 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 				{
 					GArray lSurface = Mesh.SurfaceGetArrays(i);
 
-					GArray lVertexArray = lSurface[(int)Mesh.ArrayType.Vertex].As<GArray>();
-					GArray lNormalArray = lSurface[(int)Mesh.ArrayType.Normal].As<GArray>();
-					GArray lUVArray = lSurface[(int)Mesh.ArrayType.TexUV].As<GArray>();
+					GArray lVertexArray = lSurface[(int)Godot.Mesh.ArrayType.Vertex].As<GArray>();
+					GArray lNormalArray = lSurface[(int)Godot.Mesh.ArrayType.Normal].As<GArray>();
+					GArray lUVArray = lSurface[(int)Godot.Mesh.ArrayType.TexUV].As<GArray>();
 
 					for (int j = 0; j < lVertexArray.Count; j++)
 					{
@@ -135,7 +181,7 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 						}
 					}
 
-					GArray lTriangleArray = lSurface[(int)Mesh.ArrayType.Index].As<GArray>();
+					GArray lTriangleArray = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
 
 					for (int j = 0; j < lTriangleArray.Count; j += 3)
 					{
@@ -149,6 +195,24 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 			}
 
 			return (lVertexStream.ToArray(), lTriangleStream.ToArray());
+		}
+	}
+
+	public void BuildBVH(int pMaxDepth = 10)
+	{
+		if (Mesh == null || Mesh.GetSurfaceCount() <= 0)
+			return;
+
+		GArray lSurface = Mesh.SurfaceGetArrays(0);
+		GArray lVertexArray = lSurface[(int)Godot.Mesh.ArrayType.Vertex].As<GArray>();
+		GArray lTriangleArray = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
+
+		vec3[] lVertices = lVertexArray.Select(v => fromVariant(v.As<Vector3>())).ToArray();
+		int[] lTriangles = lTriangleArray.Select(v => v.As<int>()).ToArray();
+
+		for (int i = 0; i < lTriangleArray.Count; i += 3)
+		{
+			
 		}
 	}
 

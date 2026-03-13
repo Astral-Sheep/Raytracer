@@ -10,18 +10,28 @@ public interface IRaytracedShape : IRaytracedObject
 	/// <summary>
 	/// The size of the shape's data in texels
 	/// </summary>
-	const float SHAPE_DATA_SIZE = .75f;
+	const int SHAPE_DATA_SIZE = 2;
 	const float INV_SHAPE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SHAPE_DATA_SIZE);
 
 	ERaytracedShapeType Type { get; }
 	RaytracedMaterial Material { get; }
+	ShapeBounds Bounds { get; }
 }
 
-public enum ERaytracedShapeType
+public enum ERaytracedShapeType : byte
 {
-	Sphere = 0,
-	Box = 1,
+	BoundingVolume = 0,
+	Sphere = 1,
 	Mesh = 2,
+	Box = 3,
+}
+
+public struct ShapeBounds
+{
+	public vec3 Center => (min + max) * .5f;
+
+	public vec3 min;
+	public vec3 max;
 }
 
 public static class RaytracedShapeExtensions

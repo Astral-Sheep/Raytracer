@@ -84,4 +84,82 @@ public static class ShaderConvertions
 	{
 		return new Vector4I((int)vec.x, (int)vec.y, (int)vec.z, (int)vec.w);
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec2 fromVariant(Vector2 vec)
+	{
+		return new vec2(vec.X, vec.Y);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ivec2 fromSVariant(Vector2I vec)
+	{
+		return new ivec2(vec.X, vec.Y);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uvec2 fromUVariant(Vector2I vec)
+	{
+		return new uvec2((uint)vec.X, (uint)vec.Y);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec3 fromVariant(Vector3 vec)
+	{
+		return new vec3(vec.X, vec.Y, vec.Z);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ivec3 fromSVariant(Vector3I vec)
+	{
+		return new ivec3(vec.X, vec.Y, vec.Z);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uvec3 fromUVariant(Vector3I vec)
+	{
+		return new uvec3((uint)vec.X, (uint)vec.Y, (uint)vec.Z);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec4 fromVariant(Vector4 vec)
+	{
+		return new vec4(vec.X, vec.Y, vec.Z, vec.W);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec4 fromVariant(Color color)
+	{
+		return new vec4(color.R, color.G, color.B, color.A);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec4 fromVariant(Rect2 rect)
+	{
+		return new vec4(rect.Position.X, rect.Position.Y, rect.Size.X, rect.Size.Y);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec4 fromVariant(Plane plane)
+	{
+		return new vec4(plane.Normal.X, plane.Normal.Y, plane.Normal.Z, plane.D);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec4 fromVariant(Quaternion quat)
+	{
+		return new vec4(quat.X, quat.Y, quat.Z, quat.W);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ivec4 fromSVariant(Vector4I vec)
+	{
+		return new ivec4(vec.X, vec.Y, vec.Z, vec.W);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uvec4 fromUVariant(Vector4I vec)
+	{
+		return new uvec4((uint)vec.X, (uint)vec.Y, (uint)vec.Z, (uint)vec.W);
+	}
 }

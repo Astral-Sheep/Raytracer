@@ -90,7 +90,7 @@ specularProbability = 0.02
 metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_dcpae"]
-size = Vector2(0.21861711, 0.1414682)
+size = Vector2(0.40539736, 0.1414682)
 orientation = 2
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_0l1od"]
@@ -104,7 +104,7 @@ data = {
 "width": 11
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_qiv0h"]
+[sub_resource type="ImageTexture" id="ImageTexture_vae6c"]
 image = SubResource("Image_0l1od")
 
 [sub_resource type="Image" id="Image_vae6c"]
@@ -116,7 +116,7 @@ data = {
 "width": 7
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_np66m"]
+[sub_resource type="ImageTexture" id="ImageTexture_6q2kv"]
 image = SubResource("Image_vae6c")
 
 [sub_resource type="Image" id="Image_qiv0h"]
@@ -128,7 +128,7 @@ data = {
 "width": 3
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_q3imd"]
+[sub_resource type="ImageTexture" id="ImageTexture_wy8hn"]
 image = SubResource("Image_qiv0h")
 
 [sub_resource type="Image" id="Image_6q2kv"]
@@ -140,7 +140,7 @@ data = {
 "width": 2
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_p7koi"]
+[sub_resource type="ImageTexture" id="ImageTexture_ec3qj"]
 image = SubResource("Image_6q2kv")
 
 [sub_resource type="Image" id="Image_np66m"]
@@ -152,7 +152,7 @@ data = {
 "width": 19
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_8uyvj"]
+[sub_resource type="ImageTexture" id="ImageTexture_m2ran"]
 image = SubResource("Image_np66m")
 
 [sub_resource type="Image" id="Image_wy8hn"]
@@ -164,7 +164,7 @@ data = {
 "width": 20
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_s5ikj"]
+[sub_resource type="ImageTexture" id="ImageTexture_4q4nl"]
 image = SubResource("Image_wy8hn")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_np66m"]
@@ -175,17 +175,17 @@ shader_parameter/debug_focus_plane = false
 shader_parameter/max_depth = 10.0
 shader_parameter/max_shape_tests = 2000
 shader_parameter/draw_shapes = true
-shader_parameter/shape_buffer = SubResource("ImageTexture_q3imd")
+shader_parameter/shape_buffer = SubResource("ImageTexture_wy8hn")
 shader_parameter/shape_buffer_size = Vector2i(3, 3)
-shader_parameter/sphere_buffer = SubResource("ImageTexture_p7koi")
+shader_parameter/sphere_buffer = SubResource("ImageTexture_ec3qj")
 shader_parameter/sphere_buffer_size = Vector2i(2, 2)
-shader_parameter/mesh_buffer = SubResource("ImageTexture_np66m")
+shader_parameter/mesh_buffer = SubResource("ImageTexture_6q2kv")
 shader_parameter/mesh_buffer_size = Vector2i(7, 6)
-shader_parameter/vertex_buffer = SubResource("ImageTexture_s5ikj")
+shader_parameter/vertex_buffer = SubResource("ImageTexture_4q4nl")
 shader_parameter/vertex_buffer_size = Vector2i(20, 10)
-shader_parameter/triangle_buffer = SubResource("ImageTexture_8uyvj")
+shader_parameter/triangle_buffer = SubResource("ImageTexture_m2ran")
 shader_parameter/triangle_buffer_size = Vector2i(19, 2)
-shader_parameter/material_buffer = SubResource("ImageTexture_qiv0h")
+shader_parameter/material_buffer = SubResource("ImageTexture_vae6c")
 shader_parameter/material_buffer_size = Vector2i(11, 4)
 shader_parameter/ray_count = 1
 shader_parameter/bounce_count = 1
@@ -300,7 +300,7 @@ transform = Transform3D(0.9998772, -0.002761403, 0.015427993, 0, 0.98435676, 0.1
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=808641750]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.99788463, 0.023857813, -0.060885284, -0.011521581, 0.9806485, 0.19544223, 0.0643712, -0.19432183, 0.9788274, -0.24854864, 0.4292035, 0.50218606)
+transform = Transform3D(0.99975723, 0.0044856635, -0.016861074, -0.0030737454, 0.99655855, 0.082834154, 0.01717305, -0.08276971, 0.9964212, 0.0010726973, 0.36740422, 0.085838795)
 visible = false
 cast_shadow = 0
 gi_mode = 0

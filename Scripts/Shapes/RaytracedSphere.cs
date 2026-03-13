@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Godot;
@@ -7,10 +8,25 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 {
-	public const int SPHERE_DATA_SIZE = 1;
+	public const int SPHERE_DATA_SIZE = 2;
 	public const float INV_SPHERE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SPHERE_DATA_SIZE);
 
 	public ERaytracedShapeType Type => ERaytracedShapeType.Sphere;
+
+	public ShapeBounds Bounds
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get
+		{
+			vec3 origin = fromVariant(GlobalPosition);
+			vec3 size = new vec3(Radius);
+			return new ShapeBounds {
+				min = origin - size,
+				max = origin + size,
+			};
+		}
+	}
+
 	[Export] public new RaytracedMaterial Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
@@ -40,6 +56,16 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	{
 		base._ExitTree();
 		RemoveFromRaytracer();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public Sphere GetShaderData(Dictionary<Godot.Material, int> pMaterialMap)
+	{
+		return new Sphere {
+			center = new vec3(GlobalPosition.X, GlobalPosition.Y, GlobalPosition.Z),
+			radius = Radius * GlobalBasis.Scale.X,
+			materialIndex = pMaterialMap.GetValueOrDefault(Material, 0)
+		};
 	}
 
 	public byte[] GetBytes()
