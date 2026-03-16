@@ -1,0 +1,9 @@
+[gd_resource type="Material" script_class="RaytracedMaterial" format=3 uid="uid://dqdnjjkjivwum"]
+
+[ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="1_aokyh"]
+
+[resource]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("1_aokyh")
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"

@@ -1,3 +1,4 @@
+using Astral.Tools;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Godot;
@@ -63,18 +64,20 @@ public partial class RaytracedSun : DirectionalLight3D, IRaytracedObject
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddToRaytracer()
 	{
-		this.AddToRaytracer(
-			ref raytracer,
-			(s, r) => r.AddSun(s)
-		);
+		raytracer ??= this.FindNode<Raytracer>();
+
+		if (raytracer == null)
+			return;
+
+		raytracer.AddSun(this);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void RemoveFromRaytracer()
 	{
-		this.RemoveFromRaytracer(
-			raytracer,
-			(s, r) => r.RemoveSun(s)
-		);
+		if (raytracer == null)
+			return;
+
+		raytracer.RemoveSun(this);
 	}
 }

@@ -12,7 +12,16 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	public ERaytracedShapeType Type => ERaytracedShapeType.Box;
 	public ShapeBounds Bounds { get; private set; }
 
-	// [Export] public new RaytracedMaterial Material { get; protected set; }
+	public Material[] Materials
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get
+		{
+			return new Material[] { materialOverride ?? Material };
+		}
+	}
+
+	[Export] protected RaytracedMaterial materialOverride;
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
@@ -57,18 +66,12 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()
 	{
-		this.AddToRaytracer(
-			ref raytracer,
-			(b, r) => r.AddBox(b)
-		);
+		this.AddShapeToRaytracer(ref raytracer);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void RemoveFromRaytracer()
 	{
-		this.RemoveFromRaytracer(
-			raytracer,
-			(b, r) => r.RemoveBox(b)
-		);
+		this.RemoveShapeFromRaytracer(raytracer);
 	}
 }

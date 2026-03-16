@@ -14,7 +14,7 @@ public interface IRaytracedShape : IRaytracedObject
 	const float INV_SHAPE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SHAPE_DATA_SIZE);
 
 	ERaytracedShapeType Type { get; }
-	Material Material { get; }
+	Material[] Materials { get; }
 	ShapeBounds Bounds { get; }
 
 	ShapeData GetShapeData(int pTexelIndex);
@@ -43,22 +43,33 @@ public struct ShapeBounds
 
 public static class RaytracedShapeExtensions
 {
-	public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer, Action<T, Raytracer> pAdder) where T : Node3D, IRaytracedObject
+	public static void AddShapeToRaytracer<T>(this T pShape, ref Raytracer pRaytracer) where T : Node3D, IRaytracedShape
 	{
 		pRaytracer ??= pShape.FindNode<Raytracer>();
 
 		if (pRaytracer == null)
 			return;
 
-		pAdder?.Invoke(pShape, pRaytracer);
+		pRaytracer.AddShape(pShape);
 	}
 
-	public static void RemoveFromRaytracer<T>(this T pShape, Raytracer pRaytracer, Action<T, Raytracer> pRemover) where T : Node3D, IRaytracedObject
+	// public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer) where T : Node3D, IRaytracedObject
+	// {
+	// 	pRaytracer ??= pShape.FindNode<Raytracer>();
+	//
+	// 	if (pRaytracer == null)
+	// 		return;
+	//
+	// 	pRaytracer.AddShape(this);
+	// 	pAdder?.Invoke(pShape, pRaytracer);
+	// }
+
+	public static void RemoveShapeFromRaytracer<T>(this T pShape, Raytracer pRaytracer) where T : Node3D, IRaytracedShape
 	{
 		if (pRaytracer == null)
 			return;
 
-		pRemover?.Invoke(pShape, pRaytracer);
+		pRaytracer.RemoveShape(pShape);
 	}
 
 	// public static byte[] GetShapeBytes(this IRaytracedShape pShape, int pDataIndex, int pMaterialIndex)

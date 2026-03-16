@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -27,7 +28,16 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 		}
 	}
 
-	// [Export] public Material Material { get; protected set; }
+	public Material[] Materials
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get
+		{
+			return new Material[] { materialOverride ?? Material };
+		}
+	}
+
+	[Export] protected RaytracedMaterial materialOverride;
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
@@ -75,42 +85,19 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 		return new SphereData {
 			center = new vec3(GlobalPosition.X, GlobalPosition.Y, GlobalPosition.Z),
 			radius = Radius * GlobalBasis.Scale.X,
-			materialIndex = pMaterialMap.GetValueOrDefault(Material, 0)
+			materialIndex = pMaterialMap.GetValueNoError(Material, 0)
 		};
 	}
-
-	// public byte[] GetBytes()
-	// {
-	// 	using (MemoryStream lStream = new MemoryStream())
-	// 	{
-	// 		using (BinaryWriter lWriter = new BinaryWriter(lStream))
-	// 		{
-	// 			// Sphere shape
-	// 			lWriter.Write(GlobalPosition.X); // 0
-	// 			lWriter.Write(GlobalPosition.Y); // 1
-	// 			lWriter.Write(GlobalPosition.Z); // 2
-	// 			lWriter.Write(Radius); // 3
-	// 		}
-	//
-	// 		return lStream.ToArray();
-	// 	}
-	// }
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()
 	{
-		this.AddToRaytracer(
-			ref raytracer,
-			(s, r) => r.AddSphere(s)
-		);
+		this.AddShapeToRaytracer(ref raytracer);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void RemoveFromRaytracer()
 	{
-		this.RemoveFromRaytracer(
-			raytracer,
-			(s, r) => r.RemoveSphere(s)
-		);
+		this.RemoveShapeFromRaytracer(raytracer);
 	}
 }

@@ -37,8 +37,8 @@ public class BVHMesh : IBVHVolume
 		Max = basis.Bounds.max;
 
 		int lSurfaceCount = basis.Mesh.GetSurfaceCount();
-		Vertices = new VertexData[][lSurfaceCount];
-		Triangles = new TriangleData[][lSurfaceCount];
+		Vertices = new VertexData[lSurfaceCount][];
+		Triangles = new TriangleData[lSurfaceCount][];
 
 		Parallel.For(0, lSurfaceCount, i => {
 			GArray lSurface = basis.Mesh.SurfaceGetArrays(i);
@@ -235,7 +235,7 @@ public class BVHMesh : IBVHVolume
 			transform = basis.Transform,
 			startIndex = lMeshIndices.start,
 			count = lMeshIndices.count,
-			materialIndex = lHasSubmeshes ? -1 : pMaterialMap.GetValueOrDefault(basis.GetSurfaceOverrideMaterial(0), -1),
+			materialIndex = lHasSubmeshes ? -2 : pMaterialMap.GetValueNoError(basis.GetSurfaceOverrideMaterial(0), -1),
 		};
 	}
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Astral.Tools;
 using Godot;
@@ -10,6 +11,16 @@ public static class BVHBuilder
 
 	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap)
 	{
+		if (pShapes is not { Length: > 0 })
+		{
+			return new BVHResult {
+				shapeBuffer = Array.Empty<byte>(),
+				dataBuffer = Array.Empty<byte>(),
+				vertexBuffer = Array.Empty<byte>(),
+				triangleBuffer = Array.Empty<byte>(),
+			};
+		}
+
 		// === Build ===
 		BVHGlobalVolume lRoot = new BVHGlobalVolume(pShapes);
 		lRoot.Split(MaxDepth);
@@ -103,6 +114,8 @@ public static class BVHBuilder
 					break;
 				}
 			}
+
+			++lCurrentVolume;
 		}
 
 		return new BVHResult {

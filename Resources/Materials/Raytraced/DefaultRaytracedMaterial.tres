@@ -1,8 +1,0 @@
-[gd_resource type="Resource" script_class="RaytracedMaterial" format=3 uid="uid://dnyhmekkcw5w7"]
-
-[ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="1_5utcl"]
-
-[resource]
-script = ExtResource("1_5utcl")
-color = Color(0.25, 0.25, 0.25, 1)
-metadata/_custom_type_script = "uid://bkyv770t6y4ut"

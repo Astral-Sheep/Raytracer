@@ -79,7 +79,13 @@ public struct MaterialData : IShaderData
 		return GetMarshalSize() / (float)Raytracer.TEXEL_SIZE;
 	}
 
-	public static (bool handled, MaterialData material) FromResource(Godot.Material pMaterial, Dictionary<Texture2D, int> pTextureMap)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool CanHandleResource(Material pMaterial)
+	{
+		return pMaterial is RaytracedMaterial or BaseMaterial3D;
+	}
+
+	public static (bool handled, MaterialData material) FromResource(Material pMaterial, Dictionary<Texture2D, int> pTextureMap)
 	{
 		switch (pMaterial)
 		{
@@ -103,7 +109,7 @@ public struct MaterialData : IShaderData
 		return new MaterialData {
 			// TODO: handle other types like transparent materials
 			type = (byte)EMaterialType.Opaque,
-			textureIndex = (short)(pTextureMap.GetValueOrDefault(pMaterial.AlbedoTexture, -1) + (short.MinValue + 1)),
+			textureIndex = (short)(pTextureMap.GetValueNoError(pMaterial.AlbedoTexture, -1) + (short.MinValue + 1)),
 			color = fromUVariant(lAlbedo).rgb,
 			emissive = pMaterial.EmissionEnabled ? fromUVariant(lEmissive).rgb : new Vec3<byte>(0),
 			emissiveIntensity = (Half)pMaterial.EmissionIntensity,
@@ -119,7 +125,7 @@ public struct MaterialData : IShaderData
 		return new MaterialData {
 			// TODO: handle other types like transparent materials
 			type = (byte)pMaterial.type,
-			textureIndex = (short)(pTextureMap.GetValueOrDefault(pMaterial.texture, -1) + (short.MinValue + 1)),
+			textureIndex = (short)(pTextureMap.GetValueNoError(pMaterial.texture, -1) + (short.MinValue + 1)),
 			color = fromUVariant(pMaterial.color.ToRgba32()).rgb,
 			emissive = fromUVariant(pMaterial.emissive.ToRgba32()).rgb,
 			emissiveIntensity = (Half)pMaterial.emissiveIntensity,

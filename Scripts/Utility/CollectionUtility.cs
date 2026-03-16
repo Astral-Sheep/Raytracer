@@ -56,6 +56,12 @@ public static class CollectionExtensions
 		return RemoveAt(pArray, IndexOf(pArray, pItem));
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static TValue GetValueNoError<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> pDictionary, TKey pKey, TValue pDefault) where TKey : class
+	{
+		return pKey != null && pDictionary.TryGetValue(pKey, out TValue lValue) ? lValue : pDefault;
+	}
+
 	public static IEnumerable<int> GetSteppedRange(int pFromInclusive, int pToExclusive, int pStep)
 	{
 		int[] lRange = new int[(int)Math.Ceiling((pToExclusive - pFromInclusive) / (float)pStep)];

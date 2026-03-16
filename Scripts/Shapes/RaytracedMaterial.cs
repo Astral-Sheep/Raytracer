@@ -24,6 +24,11 @@ public partial class RaytracedMaterial : Material
 	{
 		return MaterialData.FromResource(this, pTextureMap).material;
 	}
+
+	public override Shader.Mode _GetShaderMode()
+	{
+		return Shader.Mode.Spatial;
+	}
 }
 
 public enum EMaterialType : byte

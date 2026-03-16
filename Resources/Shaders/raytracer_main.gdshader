@@ -8,7 +8,8 @@ uniform bool debug_focus_plane = false;
 uniform float max_depth = 10.0;
 uniform int max_shape_tests = 10;
 
-#include "raytracer_module_deprecated.gdshaderinc"
+#include "raytracer_shape_module.gdshaderinc"
+#include "raytracer_environment_module.gdshaderinc"
 
 const int DISPLAY_DEFAULT = 0;
 const int DISPLAY_NORMAL = 1;
@@ -17,8 +18,6 @@ const int DISPLAY_DEPTH = 3;
 const int DISPLAY_BOUNCE_COUNT = 4;
 const int DISPLAY_TESTS = 5;
 const int DISPLAY_RAY_UV = 6;
-
-const int SUN_DATA_SIZE = 2;
 
 group_uniforms Rays;
 
@@ -30,20 +29,6 @@ group_uniforms DepthOfField;
 uniform float diverge_strength = 0.0;
 uniform float defocus_strength = 0.0;
 uniform float focus_plane_distance_offset = 0.0;
-
-group_uniforms Environment;
-
-uniform bool enable_environment = false;
-
-group_uniforms Environment.Sky;
-
-uniform vec3 horizon_color: source_color;
-uniform vec3 zenith_color: source_color;
-uniform vec3 ground_color: source_color;
-
-group_uniforms Environment.Sun;
-
-uniform sampler2D sun_buffer;
 
 group_uniforms _Internal.Plane;
 
@@ -73,52 +58,52 @@ Ray get_ray(in vec3 origin, in vec3 view_point, in float screen_width, in bool d
 	return ray;
 }
 
-Sun get_sun(in int index)
-{
-	ivec2 buffer_size = textureSize(sun_buffer, 0);
-	index *= SUN_DATA_SIZE;
-	
-	vec4 data0 = texelFetch(sun_buffer, ivec2(index % buffer_size.x, index / buffer_size.x), 0);
-	vec4 data1 = texelFetch(sun_buffer, ivec2((index + 1) % buffer_size.x, (index + 1) / buffer_size.x), 0);
-	return Sun(
-		data0.xyz,
-		data0.w,
-		data1.rgb,
-		data1.a
-	);
-}
+//Sun get_sun(in int index)
+//{
+	//ivec2 buffer_size = textureSize(sun_buffer, 0);
+	//index *= SUN_DATA_SIZE;
+	//
+	//vec4 data0 = texelFetch(sun_buffer, ivec2(index % buffer_size.x, index / buffer_size.x), 0);
+	//vec4 data1 = texelFetch(sun_buffer, ivec2((index + 1) % buffer_size.x, (index + 1) / buffer_size.x), 0);
+	//return Sun(
+		//data0.xyz,
+		//data0.w,
+		//data1.rgb,
+		//data1.a
+	//);
+//}
 
-vec3 get_environment_light(in Ray ray)
-{
-	if (!enable_environment)
-	{
-		return vec3(0.0);
-	}
-	
-	float sky_ratio = pow(smoothstep(0, 0.04, ray.dir.y), 0.35);
-	vec3 sky_gradient = mix(horizon_color, zenith_color, sky_ratio);
-	
-	vec3 sun_color = vec3(0.0);
-	
-	for (int i = 0; i < textureSize(sun_buffer, 0).x / 2; i++)
-	{
-		vec4 data0 = texelFetch(sun_buffer, ivec2(i * 2, 0), 0);
-		vec4 data1 = texelFetch(sun_buffer, ivec2(i * 2 + 1, 0), 0);
-		Sun sun = Sun(
-			data0.xyz,
-			data0.w,
-			data1.rgb,
-			data1.a
-		);
-		
-		sun_color += pow(max(0, dot(ray.dir, -normalize(sun.direction))), sun.focus) * sun.energy * sun.color;
-	}
-	
-	float ground_ratio = smoothstep(-0.01, 0.01, ray.dir.y);
-	float sun_mask = float(ground_ratio >= 1.0);
-	
-	return mix(ground_color, sky_gradient, ground_ratio) + sun_color * sun_mask;
-}
+//vec3 get_environment_light(in Ray ray)
+//{
+	//if (!enable_environment)
+	//{
+		//return vec3(0.0);
+	//}
+	//
+	//float sky_ratio = pow(smoothstep(0, 0.04, ray.dir.y), 0.35);
+	//vec3 sky_gradient = mix(horizon_color, zenith_color, sky_ratio);
+	//
+	//vec3 sun_color = vec3(0.0);
+	//
+	//for (int i = 0; i < textureSize(sun_buffer, 0).x / 2; i++)
+	//{
+		//vec4 data0 = texelFetch(sun_buffer, ivec2(i * 2, 0), 0);
+		//vec4 data1 = texelFetch(sun_buffer, ivec2(i * 2 + 1, 0), 0);
+		//Sun sun = Sun(
+			//data0.xyz,
+			//data0.w,
+			//data1.rgb,
+			//data1.a
+		//);
+		//
+		//sun_color += pow(max(0, dot(ray.dir, -normalize(sun.direction))), sun.focus) * sun.energy * sun.color;
+	//}
+	//
+	//float ground_ratio = smoothstep(-0.01, 0.01, ray.dir.y);
+	//float sun_mask = float(ground_ratio >= 1.0);
+	//
+	//return mix(ground_color, sky_gradient, ground_ratio) + sun_color * sun_mask;
+//}
 
 vec3 trace(in Ray ray, inout uint rng_state, inout int bounces, inout int test_count)
 {
@@ -127,8 +112,13 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces, inout int test_c
 	
 	for (int i = 0; i <= int(bounce_count); i++)
 	{
-		HitResult hit_result = trace_ray_collision(ray);
-		test_count += hit_result.shape_test_count;
+		HitResult hit_result = trace_ray_collision(
+			ray
+#if DEBUG
+			, test_count
+#endif //DEBUG
+		);
+		//test_count += hit_result.shape_test_count;
 		
 		if (!hit_result.info.hit)
 		{
@@ -136,7 +126,14 @@ vec3 trace(in Ray ray, inout uint rng_state, inout int bounces, inout int test_c
 			break;
 		}
 		
-		Material material = get_material(hit_result.shape.material_index);
+		if (hit_result.material_index < 0)
+		{
+			// Fallback material
+			light += vec3(0.0, 1.0, 1.0);
+			break;
+		}
+		
+		Material material = get_material(hit_result.material_index);
 		
 		ray.origin = hit_result.info.point;
 		vec3 diffuse_dir = normalize(hit_result.info.normal + random_dir(rng_state));
@@ -167,7 +164,10 @@ void display(inout vec3 albedo, in vec2 uv, in vec3 ray_origin, in vec3 view_poi
 {
 	vec3 light = vec3(0.0);
 	int bounces = 0;
+	
+#if DEBUG
 	int test_count = 0;
+#endif //DEBUG
 	
 	for (int i = 0; i < int(ray_count); i++)
 	{
@@ -186,14 +186,28 @@ void display(inout vec3 albedo, in vec2 uv, in vec3 ray_origin, in vec3 view_poi
 	else if (debug_focus_plane)
 	{
 		Ray ray = get_ray(ray_origin, view_point, screen_size, false, rng_state);
-		HitResult hit_result = trace_ray_collision(ray);
+		HitResult hit_result = trace_ray_collision(
+			ray
+#if DEBUG
+			, test_count
+#endif //DEBUG
+		);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
 }
 
 void debug_normal(inout vec3 albedo, in Ray ray)
 {
-	HitInfo hit_info = trace_ray_collision(ray).info;
+#if DEBUG
+	int test_count = 0;
+#endif //DEBUG
+	
+	HitInfo hit_info = trace_ray_collision(
+		ray
+#if DEBUG
+		, test_count
+#endif //DEBUG
+	).info;
 	
 	if (hit_info.hit)
 	{
@@ -208,11 +222,20 @@ void debug_normal(inout vec3 albedo, in Ray ray)
 
 void debug_unshaded(inout vec3 albedo, in Ray ray)
 {
-	HitResult hit_result = trace_ray_collision(ray);
+#if DEBUG
+	int test_count = 0;
+#endif //DEBUG
+	
+	HitResult hit_result = trace_ray_collision(
+		ray
+#if DEBUG
+		, test_count
+#endif //DEBUG
+	);
 	
 	if (hit_result.info.hit)
 	{
-		Material material = get_material(hit_result.shape.material_index);
+		Material material = get_material(hit_result.material_index);
 		albedo.rgb = material.color.xyz;
 	}
 	
@@ -224,7 +247,16 @@ void debug_unshaded(inout vec3 albedo, in Ray ray)
 
 void debug_depth(inout vec3 albedo, in Ray ray)
 {
-	HitResult hit_result = trace_ray_collision(ray);
+#if DEBUG
+	int test_count = 0;
+#endif //DEBUG
+	
+	HitResult hit_result = trace_ray_collision(
+		ray
+#if DEBUG
+		, test_count
+#endif //DEBUG
+	);
 	albedo.rgb = vec3(hit_result.info.dist / max_depth);
 	
 	if (debug_focus_plane)
@@ -236,13 +268,22 @@ void debug_depth(inout vec3 albedo, in Ray ray)
 void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
 	int bounces = 0;
+	
+#if DEBUG
 	int test_count = 0;
+#endif //DEBUG
+	
 	trace(ray, rng_state, bounces, test_count);
 	albedo.rgb = mix(vec3(0.0), vec3(1.0), float(bounces) / float(bounce_count + 1u));
 	
 	if (debug_focus_plane)
 	{
-		HitResult hit_result = trace_ray_collision(ray);
+		HitResult hit_result = trace_ray_collision(
+			ray
+#if DEBUG
+		, test_count
+#endif //DEBUG
+		);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
 }
@@ -269,35 +310,35 @@ void fragment()
 {
 	ALBEDO.rgb = vec3(0.0);
 	
-	uint rng_state = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
-	vec3 origin = (local_to_world_matrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	
-	float focus_plane = near_clip_plane + focus_plane_distance_offset;
-	vec3 local_view_point = vec3(SCREEN_UV.x - 0.5, 1.0 - SCREEN_UV.y - 0.5, -1.0) * vec3(plane_size * vec2(0.5) * (focus_plane / near_clip_plane), focus_plane);
-	vec3 view_point = (local_to_world_matrix * vec4(local_view_point, 1.0)).xyz;
-	
-	switch (display_type)
-	{
-		case DISPLAY_DEFAULT:
-			display(ALBEDO, SCREEN_UV, origin, view_point, VIEWPORT_SIZE.x, rng_state);
-			break;
-		case DISPLAY_NORMAL:
-			debug_normal(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			break;
-		case DISPLAY_UNSHADED:
-			debug_unshaded(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			break;
-		case DISPLAY_DEPTH:
-			debug_depth(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			break;
-		case DISPLAY_BOUNCE_COUNT:
-			debug_bounce_count(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
-			break;
-		case DISPLAY_TESTS:
-			debug_tests(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
-			break;
-		case DISPLAY_RAY_UV:
-			debug_ray_uv(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			break;
-	}
+	//uint rng_state = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
+	//vec3 origin = (local_to_world_matrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	//
+	//float focus_plane = near_clip_plane + focus_plane_distance_offset;
+	//vec3 local_view_point = vec3(SCREEN_UV.x - 0.5, 1.0 - SCREEN_UV.y - 0.5, -1.0) * vec3(plane_size * vec2(0.5) * (focus_plane / near_clip_plane), focus_plane);
+	//vec3 view_point = (local_to_world_matrix * vec4(local_view_point, 1.0)).xyz;
+	//
+	//switch (display_type)
+	//{
+		//case DISPLAY_DEFAULT:
+			//display(ALBEDO, SCREEN_UV, origin, view_point, VIEWPORT_SIZE.x, rng_state);
+			//break;
+		//case DISPLAY_NORMAL:
+			//debug_normal(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			//break;
+		//case DISPLAY_UNSHADED:
+			//debug_unshaded(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			//break;
+		//case DISPLAY_DEPTH:
+			//debug_depth(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			//break;
+		//case DISPLAY_BOUNCE_COUNT:
+			//debug_bounce_count(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
+			//break;
+		//case DISPLAY_TESTS:
+			//debug_tests(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
+			//break;
+		//case DISPLAY_RAY_UV:
+			//debug_ray_uv(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			//break;
+	//}
 }

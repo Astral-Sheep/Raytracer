@@ -130,10 +130,10 @@ Shape get_shape(in int index)
 	vec4 raw_data1 = get_buffer_texel(shape_buffer, index + 1, shape_buffer_size);
 	
 	return Shape(
-		floatBitsToInt(raw_data0.x), // type
-		floatBitsToInt(raw_data0.y), // data_texel_index
-		vec3(raw_data0.zw, raw_data1.x), // bound_min
-		vec3(raw_data1.yzw) // bound_max
+		floatBitsToInt(raw_data0.w), // type
+		floatBitsToInt(raw_data1.w), // data_texel_index
+		raw_data0.xyz, // bound_min
+		raw_data1.xyz // bound_max
 	);
 }
 

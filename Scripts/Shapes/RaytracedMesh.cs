@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Astral.Tools;
 using Godot;
@@ -36,7 +36,32 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 		}
 	}
 
-	[Export] public Material Material { get; protected set; }
+	public Material[] Materials
+	{
+		get
+		{
+			if (Mesh == null)
+				return [];
+
+			Material[] lMaterials = new Material[Mesh.GetSurfaceCount()];
+
+			for (int i = 0; i < lMaterials.Length; i++)
+			{
+				if (materialOverrides.Length > i && materialOverrides[i] != null)
+				{
+					lMaterials[i] = materialOverrides[i];
+				}
+				else
+				{
+					lMaterials[i] = GetSurfaceOverrideMaterial(i) ?? Mesh.SurfaceGetMaterial(i);
+				}
+			}
+
+			return lMaterials;
+		}
+	}
+
+	[Export] protected Material[] materialOverrides = Array.Empty<Material>();
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
@@ -89,230 +114,15 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 		};
 	}
 
-	// public Mesh[] GetShaderData(Dictionary<Godot.Material, int> pMaterialMap, int pTriangleOffset = 0)
-	// {
-	// 	if (Mesh == null)
-	// 	{
-	// 		return Array.Empty<Mesh>();
-	// 	}
-	//
-	// 	Mesh[] lSurfaces = new Mesh[Mesh.GetSurfaceCount()];
-	//
-	// 	for (int i = 0; i < Mesh.GetSurfaceCount(); i++)
-	// 	{
-	// 		GArray lSurface = Mesh.SurfaceGetArrays(i);
-	// 		GArray lTriangles = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
-	// 		int lTriCount = lTriangles.Count / 3;
-	//
-	// 		lSurfaces[i] = new Mesh {
-	// 			triStart = pTriangleOffset,
-	// 			triCount = lTriCount,
-	// 			transform = GlobalTransform,
-	// 			materialIndex = pMaterialMap.GetValueOrDefault(GetSurfaceOverrideMaterial(i), 0),
-	// 		};
-	//
-	// 		pTriangleOffset += lTriCount;
-	// 	}
-	//
-	// 	return lSurfaces;
-	// }
-
-	// public byte[] GetMeshBytes(int pTriangleStartIndex = 0)
-	// {
-	// 	using (MemoryStream lStream = new MemoryStream())
-	// 	{
-	// 		using (BinaryWriter lWriter = new BinaryWriter(lStream))
-	// 		{
-	// 			// Mesh shape
-	// 			lWriter.Write(pTriangleStartIndex); // 0
-	// 			lWriter.Write(Mesh.GetFaces().Length / 3); // 1
-	//
-	// 			Aabb lBounds = GetAabb();
-	// 			Vector3 lGlobalMin = ToGlobal(lBounds.Position);
-	// 			Vector3 lGlobalMax = ToGlobal(lBounds.End);
-	//
-	// 			lWriter.Write(lGlobalMin.X); // 2
-	// 			lWriter.Write(lGlobalMin.Y); // 3
-	// 			lWriter.Write(lGlobalMin.Z); // 4
-	//
-	// 			lWriter.Write(lGlobalMax.X); // 5
-	// 			lWriter.Write(lGlobalMax.Y); // 6
-	// 			lWriter.Write(lGlobalMax.Z); // 7
-	//
-	// 			// 8 to 23
-	// 			for (int i = 0; i < 4; i++)
-	// 			{
-	// 				for (int j = 0; j < 3; j++)
-	// 				{
-	// 					lWriter.Write(GlobalTransform[i, j]);
-	// 				}
-	//
-	// 				lWriter.Write(Convert.ToSingle(i == 3));
-	// 			}
-	// 		}
-	//
-	// 		return lStream.ToArray();
-	// 	}
-	// }
-
-	// public (byte[], byte[]) GetPrimitiveBytes(int pVertexIndexOffset)
-	// {
-	// 	if (Mesh == null)
-	// 	{
-	// 		return (Array.Empty<byte>(), Array.Empty<byte>());
-	// 	}
-	//
-	// 	using (MemoryStream lVertexStream = new MemoryStream(), lTriangleStream = new MemoryStream())
-	// 	{
-	// 		using (BinaryWriter lVertexWriter = new BinaryWriter(lVertexStream), lTriangleWriter = new BinaryWriter(lTriangleStream))
-	// 		{
-	// 			int lVertexOffset = pVertexIndexOffset;
-	//
-	// 			for (int i = 0; i < Mesh.GetSurfaceCount(); i++)
-	// 			{
-	// 				GArray lSurface = Mesh.SurfaceGetArrays(i);
-	//
-	// 				GArray lVertexArray = lSurface[(int)Godot.Mesh.ArrayType.Vertex].As<GArray>();
-	// 				GArray lNormalArray = lSurface[(int)Godot.Mesh.ArrayType.Normal].As<GArray>();
-	// 				GArray lUVArray = lSurface[(int)Godot.Mesh.ArrayType.TexUV].As<GArray>();
-	//
-	// 				for (int j = 0; j < lVertexArray.Count; j++)
-	// 				{
-	//
-	// 					Vector3 lVertex = lVertexArray[j].As<Vector3>();
-	// 					lVertexWriter.Write(lVertex.X);
-	// 					lVertexWriter.Write(lVertex.Y);
-	// 					lVertexWriter.Write(lVertex.Z);
-	//
-	// 					Vector3 lNormal = lNormalArray[j].As<Vector3>();
-	// 					lVertexWriter.Write(lNormal.X);
-	// 					lVertexWriter.Write(lNormal.Y);
-	// 					lVertexWriter.Write(lNormal.Z);
-	//
-	// 					if (lUVArray is { Count: > 0 })
-	// 					{
-	// 						Vector2 lUV = lUVArray[j].As<Vector2>();
-	// 						lVertexWriter.Write(lUV.X);
-	// 						lVertexWriter.Write(lUV.Y);
-	// 					}
-	// 					else
-	// 					{
-	// 						lVertexWriter.Write(0);
-	// 						lVertexWriter.Write(0);
-	// 					}
-	// 				}
-	//
-	// 				GArray lTriangleArray = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
-	//
-	// 				for (int j = 0; j < lTriangleArray.Count; j += 3)
-	// 				{
-	// 					lTriangleWriter.Write(lTriangleArray[j].As<int>() + lVertexOffset);
-	// 					lTriangleWriter.Write(lTriangleArray[j + 2].As<int>() + lVertexOffset);
-	// 					lTriangleWriter.Write(lTriangleArray[j + 1].As<int>() + lVertexOffset);
-	// 				}
-	//
-	// 				lVertexOffset += lVertexArray.Count;
-	// 			}
-	// 		}
-	//
-	// 		return (lVertexStream.ToArray(), lTriangleStream.ToArray());
-	// 	}
-	// }
-
-	// public void Split(int pMaxDepth = 1)
-	// {
-	// 	if (pMaxDepth == 0 || ChildVolumes.Count > 0 || Mesh.GetSurfaceCount() <= 0)
-	// 		return;
-	//
-	// 	if (Mesh.GetSurfaceCount() > 1)
-	// 	{
-	// 		for (int i = 0; i < Mesh.GetSurfaceCount(); i++)
-	// 		{
-	// 			BVHSubmesh lSubmesh = new BVHSubmesh {
-	// 				material = Mesh.SurfaceGetMaterial(i),
-	// 				surface = Mesh.SurfaceGetArrays(i),
-	// 			};
-	//
-	// 			ChildVolumes.Add(lSubmesh);
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		GArray lSurface = Mesh.SurfaceGetArrays(0);
-	// 		GArray lVertices = lSurface[(int)Godot.Mesh.ArrayType.Vertex].As<GArray>();
-	// 		GArray lTriangles = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
-	//
-	// 		vec3 lSplitAxis = (Min + Max) * .5f;
-	// 		int lChild0Start = 0;
-	// 		int lChild1Start = 0;
-	//
-	// 		// Mathf.Inf is used because we compare with lessThan. -Mathf.Inf should be used if compared with greaterThan
-	// 		if (lSplitAxis.x > lSplitAxis.y && lSplitAxis.x > lSplitAxis.z)
-	// 		{
-	// 			lSplitAxis = new vec3(lSplitAxis.x, Mathf.Inf, Mathf.Inf);
-	// 		}
-	// 		else if (lSplitAxis.y > lSplitAxis.z)
-	// 		{
-	// 			lSplitAxis = new vec3(Mathf.Inf, lSplitAxis.y, Mathf.Inf);
-	// 		}
-	// 		else
-	// 		{
-	// 			lSplitAxis = new vec3(Mathf.Inf, Mathf.Inf, lSplitAxis.z);
-	// 		}
-	//
-	// 		for (int i = 0; i < lTriangles.Count; i += 3)
-	// 		{
-	// 			vec3 lA = fromVariant(lVertices[lTriangles[i].As<int>()].As<Vector3>());
-	// 			vec3 lB = fromVariant(lVertices[lTriangles[i + 1].As<int>()].As<Vector3>());
-	// 			vec3 lC = fromVariant(lVertices[lTriangles[i + 2].As<int>()].As<Vector3>());
-	//
-	// 			vec3 lCenter = (lA + lB + lC) / 3f;
-	//
-	// 			if (all(lessThanEqual(lCenter, lSplitAxis)))
-	// 			{
-	// 				if (i / 3 )
-	// 			}
-	// 			else
-	// 			{
-	// 				
-	// 			}
-	// 		}
-	// 	}
-	// }
-	//
-	// public void BuildBVH(int pMaxDepth = 10)
-	// {
-	// 	if (Mesh == null || Mesh.GetSurfaceCount() <= 0)
-	// 		return;
-	//
-	// 	GArray lSurface = Mesh.SurfaceGetArrays(0);
-	// 	GArray lVertexArray = lSurface[(int)Godot.Mesh.ArrayType.Vertex].As<GArray>();
-	// 	GArray lTriangleArray = lSurface[(int)Godot.Mesh.ArrayType.Index].As<GArray>();
-	//
-	// 	vec3[] lVertices = lVertexArray.Select(v => fromVariant(v.As<Vector3>())).ToArray();
-	// 	int[] lTriangles = lTriangleArray.Select(v => v.As<int>()).ToArray();
-	//
-	// 	for (int i = 0; i < lTriangleArray.Count; i += 3)
-	// 	{
-	// 		
-	// 	}
-	// }
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()
 	{
-		this.AddToRaytracer(
-			ref raytracer,
-			(m, r) => r.AddMesh(m)
-		);
+		this.AddShapeToRaytracer(ref raytracer);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void RemoveFromRaytracer()
 	{
-		this.RemoveFromRaytracer(
-			raytracer,
-			(m, r) => r.RemoveMesh(m)
-		);
+		this.RemoveShapeFromRaytracer(raytracer);
 	}
 }

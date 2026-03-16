@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -28,7 +29,7 @@ public class BVHSubmesh : BVHMeshVolume
 		return new SubmeshData {
 			startIndex = children.Count > 0 ? pChildOffset : startIndex,
 			count = children.Count > 0 ? 0 : count,
-			materialIndex = pMaterialMap.GetValueOrDefault(material, -1),
+			materialIndex = pMaterialMap.GetValueNoError(material, -1),
 		};
 	}
 }
