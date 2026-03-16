@@ -13,6 +13,7 @@ public static class BVHBuilder
 	{
 		if (pShapes is not { Length: > 0 })
 		{
+			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] No shapes to order. Returning empty buffers");
 			return new BVHResult {
 				shapeBuffer = Array.Empty<byte>(),
 				dataBuffer = Array.Empty<byte>(),
@@ -24,6 +25,21 @@ public static class BVHBuilder
 		// === Build ===
 		BVHGlobalVolume lRoot = new BVHGlobalVolume(pShapes);
 		lRoot.Split(MaxDepth);
+
+		if (lRoot.childVolumes.Count == 0 && lRoot.childShapes.Count == 1)
+		{
+			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] Only 1 shape ordered. Returning shape without hierarchy");
+			IRaytracedShape lShape = lRoot.childShapes[0];
+			return new BVHResult {
+				shapeBuffer = lShape.GetShapeData(0).GetBytes(),
+				dataBuffer = lShape switch {
+					RaytracedSphere lSphere => lSphere.GetShaderData(pMaterialMap).GetBytes(),
+					_ => Array.Empty<byte>(),
+				},
+				vertexBuffer = Array.Empty<byte>(),
+				triangleBuffer = Array.Empty<byte>(),
+			};
+		}
 
 		// === Data formatting ===
 
@@ -50,7 +66,7 @@ public static class BVHBuilder
 				case BVHGlobalVolume lGlobalVolume:
 				{
 					lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
+					lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset - 1).GetBytes());
 
 					for (int i = 0; i < lGlobalVolume.childShapes.Count; i++)
 					{
@@ -118,132 +134,14 @@ public static class BVHBuilder
 			++lCurrentVolume;
 		}
 
+		GD.PrintRich($"[color=#34EBEB][lb]BVH[rb][/color] Ordered {pShapes.Length} shapes into {lVolumes.Count} volumes and {lChildOffset} primitives");
+
 		return new BVHResult {
 			shapeBuffer = lShapes.ToArray(),
 			dataBuffer = lData.ToArray(),
 			vertexBuffer = lVertices.ToArray(),
 			triangleBuffer = lTriangles.ToArray(),
 		};
-
-		// List<byte> lShapeBuffer = new List<byte>();
-		// List<byte> lDataBuffer = new List<byte>();
-		// List<byte> lVertexBuffer = new List<byte>();
-		// List<byte> lTriangleBuffer = new List<byte>();
-		//
-		// Dictionary<Godot.Mesh, int> lBuiltMeshes = new Dictionary<Godot.Mesh, int>();
-		//
-		// List<IBVHVolume> lVolumes = new List<IBVHVolume>();
-		// int lCurrentVolume = 0;
-		// int lChildOffset = 0;
-		//
-		// BVHGlobalVolume lRoot = new BVHGlobalVolume(pShapes);
-		// lRoot.Split(MaxDepth);
-		// lVolumes.Add(lRoot);
-		//
-		// while (lCurrentVolume < lVolumes.Count)
-		// {
-		// 	IBVHVolume lVolume = lVolumes[lCurrentVolume];
-		//
-		// 	switch (lVolume)
-		// 	{
-		// 		case RaytracedMesh lMesh:
-		// 			lShapeBuffer.AddRange(new ShapeData {
-		// 				type = (int)ERaytracedShapeType.BoundingVolume,
-		// 				dataTexelIndex = lDataBuffer.Count / Raytracer.TEXEL_SIZE,
-		// 				boundMin = lVolume.Min,
-		// 				boundMax = lVolume.Max,
-		// 			}.GetBytes());
-		//
-		// 			if (!lBuiltMeshes.TryGetValue(lMesh.Mesh, out int lTexelIndex))
-		// 			{
-		// 				lTexelIndex = lDataBuffer.Count / Raytracer.TEXEL_SIZE;
-		// 				lDataBuffer.AddRange(lMesh.GetShaderData(pMaterialMap, lTriangleBuffer.Count / TriangleData.GetMarshalSize()).GetBytes());
-		// 			}
-		//
-		// 			break;
-		// 		default:
-		// 			lShapeBuffer.AddRange(new ShapeData {
-		// 				type = (int)ERaytracedShapeType.BoundingVolume,
-		// 				dataTexelIndex = lDataBuffer.Count / Raytracer.TEXEL_SIZE,
-		// 				boundMin = lVolume.Min,
-		// 				boundMax = lVolume.Max,
-		// 			}.GetBytes());
-		//
-		// 			lDataBuffer.AddRange(new BoundingVolumeData {
-		// 				startIndex = lVolumes.Count + lChildOffset,
-		// 				count = lVolume.ChildShapes.Count + lVolume.ChildVolumes.Count,
-		// 			}.GetBytes());
-		// 			break;
-		// 	}
-		//
-		// 	Debug.Assert(
-		// 		lVolume.ChildVolumes.Count <= 0 || lVolume.ChildShapes.Count + lVolume.ChildVolumes.Count <= 2,
-		// 		$"BVH build assertion failed: total bounding volume child count is equal to {lVolume.ChildShapes.Count + lVolume.ChildVolumes.Count} ({lVolume.ChildShapes.Count} shapes and {lVolume.ChildVolumes.Count} volumes)"
-		// 	);
-		//
-		// 	for (int i = 0; i < lVolume.ChildShapes.Count; i++)
-		// 	{
-		// 		IRaytracedShape lShape = lVolume.ChildShapes[i];
-		//
-		// 		switch (lShape.Type)
-		// 		{
-		// 			case ERaytracedShapeType.BoundingVolume:
-		// 			{
-		// 				GD.PushError($"A bounding volume was pushed in the childShapes List of BoundingVolume {lCurrentVolume} at index {i}");
-		// 				break;
-		// 			}
-		// 			case ERaytracedShapeType.Sphere:
-		// 			{
-		// 				if (lShape is not RaytracedSphere lSphere)
-		// 					break;
-		//
-		// 				vec3 lExtent = new vec3(lSphere.Radius * lSphere.Basis.Scale.X);
-		// 				lShapeBuffer.AddRange(new ShapeData {
-		// 					type = (int)lShape.Type,
-		// 					dataTexelIndex = lDataBuffer.Count / Raytracer.TEXEL_SIZE,
-		// 					boundMin = fromVariant(lSphere.GlobalPosition) - lExtent,
-		// 					boundMax = fromVariant(lSphere.GlobalPosition) + lExtent,
-		// 				}.GetBytes());
-		//
-		// 				lDataBuffer.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
-		// 				++lChildOffset;
-		// 				break;
-		// 			}
-		// 			case ERaytracedShapeType.Mesh:
-		// 			{
-		// 				if (lShape is not RaytracedMesh lMesh)
-		// 					break;
-		//
-		// 				BVHResult lMeshBVH = BuildBVH(lMesh, 0, 0, pMaterialMap, MaxDepth);
-		//
-		// 				lShapeBuffer.AddRange(new ShapeData {
-		// 					type = (int)lShape.Type,
-		// 					dataTexelIndex = lDataBuffer.Count / Raytracer.TEXEL_SIZE,
-		// 					boundMin = lMesh.Bounds.min,
-		// 					boundMax = lMesh.Bounds.max,
-		// 				}.GetBytes());
-		//
-		// 				++lChildOffset;
-		// 				break;
-		// 			}
-		// 			default:
-		// 			{
-		// 				GD.PushWarning($"Shape type {lShape.Type} is not supported");
-		// 				break;
-		// 			}
-		// 		}
-		// 	}
-		//
-		// 	lVolumes.AddRange(lVolume.ChildVolumes);
-		// 	++lCurrentVolume;
-		// }
-		//
-		// return new BVHResult {
-		// 	shapeBuffer = lShapeBuffer.ToArray(),
-		// 	dataBuffer = lDataBuffer.ToArray(),
-		// 	vertexBuffer = lVertexBuffer.ToArray(),
-		// 	triangleBuffer = lTriangleBuffer.ToArray(),
-		// };
 	}
 
 	public static vec3 GetSplitAxis(IBVHVolume pVolume)

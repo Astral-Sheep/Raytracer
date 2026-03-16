@@ -71,7 +71,7 @@ public class BVHGlobalVolume : IBVHVolume
 		{
 			IRaytracedShape lShape = childShapes[i];
 
-			if (all(lessThanEqual(lSplitAxis, lShape.Bounds.Center)))
+			if (all(lessThanEqual(lShape.Bounds.Center, lSplitAxis)))
 			{
 				lChild0.IncludeNoCheck(lShape);
 			}
@@ -82,13 +82,13 @@ public class BVHGlobalVolume : IBVHVolume
 		}
 
 		childShapes.Clear();
-		AddSubvolume(lChild0, ref pVertexIndexOffset);
-		AddSubvolume(lChild1, ref pVertexIndexOffset);
+		AddSubvolume(lChild0, pMaxDepth - 1, ref pVertexIndexOffset);
+		AddSubvolume(lChild1, pMaxDepth - 1, ref pVertexIndexOffset);
 
 		return pVertexIndexOffset;
 	}
 
-	private void AddSubvolume(BVHGlobalVolume pVolume, ref int pVertexIndexOffset)
+	private void AddSubvolume(BVHGlobalVolume pVolume, int pMaxDepth, ref int pVertexIndexOffset)
 	{
 		if (pVolume.childShapes.Count < 2)
 		{
@@ -103,7 +103,7 @@ public class BVHGlobalVolume : IBVHVolume
 				else
 				{
 					pVertexIndexOffset = lBVHMesh.GenerateTriangleBuffer(pVertexIndexOffset);
-					pVertexIndexOffset = lBVHMesh.Split(pVertexIndexOffset: pVertexIndexOffset);
+					pVertexIndexOffset = lBVHMesh.Split(BVHMesh.MaxDepth, pVertexIndexOffset);
 					builtMeshes.Add(lMesh.Mesh, lBVHMesh);
 				}
 
@@ -116,7 +116,7 @@ public class BVHGlobalVolume : IBVHVolume
 		}
 		else
 		{
-			pVertexIndexOffset = pVolume.Split(pVertexIndexOffset: pVertexIndexOffset);
+			pVertexIndexOffset = pVolume.Split(pMaxDepth - 1, pVertexIndexOffset);
 			childVolumes.Add(pVolume);
 		}
 	}

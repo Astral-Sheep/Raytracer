@@ -60,12 +60,12 @@ public class BVHMeshVolume : IBVHVolume
 			return vertexOffset;
 		}
 
-		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, 0, 0, vertexOffset);
-		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, 0, 0, vertexOffset);
+		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
+		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
 
 		vec3 lSplitAxis = BVHBuilder.GetSplitAxis(this);
 
-		for (int i = 0; i < triangles.Length; i++)
+		for (int i = startIndex; i < count; i++)
 		{
 			TriangleData lTriangle = triangles[i];
 			vec3 lCenter = (

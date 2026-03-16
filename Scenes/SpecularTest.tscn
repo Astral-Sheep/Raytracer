@@ -29,11 +29,11 @@ orientation = 2
 
 [sub_resource type="Image" id="Image_uuud0"]
 data = {
-"data": PackedByteArray(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"data": PackedByteArray(1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 191, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 128, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 126, 170, 190, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 128, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "format": "RGBAFloat",
 "height": 1,
 "mipmaps": false,
-"width": 1
+"width": 5
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_0l1od"]
@@ -41,17 +41,29 @@ image = SubResource("Image_uuud0")
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_0l1od"]
 
-[sub_resource type="Image" id="Image_0l1od"]
+[sub_resource type="Image" id="Image_vae6c"]
 data = {
-"data": PackedByteArray(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"data": PackedByteArray(0, 0, 128, 255, 190, 190, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0),
 "format": "RGBAFloat",
 "height": 1,
 "mipmaps": false,
-"width": 2
+"width": 1
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_qiv0h"]
-image = SubResource("Image_0l1od")
+image = SubResource("Image_vae6c")
+
+[sub_resource type="Image" id="Image_6q2kv"]
+data = {
+"data": PackedByteArray(0, 0, 160, 191, 0, 0, 0, 0, 0, 0, 128, 190, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 63, 0, 0, 128, 62, 0, 0, 0, 0, 0, 0, 160, 191, 0, 0, 128, 62, 0, 0, 128, 190, 4, 0, 0, 0, 0, 0, 64, 191, 0, 0, 64, 63, 0, 0, 128, 62, 1, 0, 0, 0, 125, 63, 21, 191, 0, 0, 128, 62, 0, 0, 128, 190, 4, 0, 0, 0, 232, 251, 169, 189, 0, 0, 64, 63, 0, 0, 128, 62, 3, 0, 0, 0),
+"format": "RGBAFloat",
+"height": 2,
+"mipmaps": false,
+"width": 3
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_np66m"]
+image = SubResource("Image_6q2kv")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_np66m"]
 render_priority = 1
@@ -60,13 +72,14 @@ shader_parameter/display_type = 0
 shader_parameter/debug_focus_plane = false
 shader_parameter/max_depth = 10.0
 shader_parameter/max_shape_tests = 2000
-shader_parameter/shape_buffer = SubResource("ImageTexture_qiv0h")
-shader_parameter/shape_buffer_size = Vector2i(2, 1)
+shader_parameter/shape_buffer = SubResource("ImageTexture_np66m")
+shader_parameter/shape_buffer_size = Vector2i(3, 2)
 shader_parameter/data_buffer = SubResource("ImageTexture_0l1od")
-shader_parameter/data_buffer_size = Vector2i(1, 1)
+shader_parameter/data_buffer_size = Vector2i(5, 1)
 shader_parameter/vertex_buffer_size = Vector2i(0, 0)
 shader_parameter/triangle_buffer_size = Vector2i(0, 0)
-shader_parameter/material_buffer_size = Vector2i(0, 0)
+shader_parameter/material_buffer = SubResource("ImageTexture_qiv0h")
+shader_parameter/material_buffer_size = Vector2i(1, 1)
 shader_parameter/enable_environment = false
 shader_parameter/horizon_color = Color(0, 0, 0, 1)
 shader_parameter/zenith_color = Color(0, 0, 0, 1)
@@ -77,7 +90,7 @@ shader_parameter/bounce_count = 1
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 0.0
 shader_parameter/focus_plane_distance_offset = 2.85
-shader_parameter/plane_size = Vector2(0.33340746, 0.14006752)
+shader_parameter/plane_size = Vector2(0.21729942, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 shader_parameter/enable_accumulation = false
@@ -168,19 +181,26 @@ metadata/_custom_type_script = "uid://byk87rao7vn6w"
 [node name="Camera" type="Camera3D" parent="." unique_id=1835829282]
 transform = Transform3D(0.9998772, -0.002761403, 0.015427993, 0, 0.98435676, 0.17618664, -0.015673172, -0.17616498, 0.9842359, 0.006859608, 1.1175293, 2.5443118)
 
-[node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=808641750]
+[node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=808641750 node_paths=PackedStringArray("Camera", "_camera")]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.9990653, -0.009178704, 0.04264151, 0.0076850727, 0.9993561, 0.03506343, -0.042936593, -0.034702376, 0.9984751, 0.05503391, -0.10793632, 0.8267708)
-visible = false
+transform = Transform3D(0.9990653, -0.009178704, 0.042641476, 0.0076850727, 0.9993561, 0.035063416, -0.042936593, -0.034702376, 0.9984743, 0.05503391, -0.10793632, 0.8267708)
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_dcpae")
 surface_material_override/0 = SubResource("ShaderMaterial_np66m")
 script = ExtResource("3_yjkhn")
-printOnce = true
-DefaultObjectMaterial = ExtResource("5_uuud0")
-material = SubResource("ShaderMaterial_np66m")
 ShowInSceneView = true
+Camera = NodePath("../../../../../../../../../../@Node3DEditor@9983/@HSplitContainer@9388/@HSplitContainer@9390/@VSplitContainer@9392/@Node3DEditorViewportContainer@9393/@Node3DEditorViewport@9448/@SubViewportContainer@9394/@SubViewport@9395/@Camera3D@9397")
+NearPlaneSize = Vector2(0.21729942, 0.14006752)
+FarPlaneSize = Vector2(17383.998, 11205.43)
+_showInSceneView = true
+_camera = NodePath("../../../../../../../../../../@Node3DEditor@9983/@HSplitContainer@9388/@HSplitContainer@9390/@VSplitContainer@9392/@Node3DEditorViewportContainer@9393/@Node3DEditorViewport@9448/@SubViewportContainer@9394/@SubViewport@9395/@Camera3D@9397")
+DefaultObjectMaterial = ExtResource("5_uuud0")
+printOnce = true
+_enableAccumulation = false
+material = SubResource("ShaderMaterial_np66m")
+updateRequested = false
+frameCount = 0
 metadata/_custom_type_script = "uid://de1saddwjohgl"
 metadata/_edit_lock_ = true

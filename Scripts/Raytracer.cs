@@ -65,6 +65,7 @@ public partial class Raytracer : PostProcessLayer
 	[ExportToolButton("Clear shapes")]
 	protected Callable ClearShapes => Callable.From(() => {
 		shapes.Clear();
+		updateRequested = true;
 	});
 
 	[ExportToolButton("Reset frame count")]
@@ -115,12 +116,14 @@ public partial class Raytracer : PostProcessLayer
 	public void RemoveShape(IRaytracedShape pShape)
 	{
 		RemoveObject(pShape, shapes);
+		updateRequested = true;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void RemoveSun(RaytracedSun pSun)
 	{
 		RemoveObject(pSun, suns);
+		sunBuffer.updateRequested = true;
 	}
 
 	protected void RemoveObject<T>(T pObject, List<T> pObjectContainer) where T : IRaytracedObject
