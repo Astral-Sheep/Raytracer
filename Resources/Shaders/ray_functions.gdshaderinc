@@ -107,6 +107,8 @@ HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = normalize(triangle.normalA * w + triangle.normalB * u + triangle.normalC * v);
 	hit_info.uv = triangle.uvA * w + triangle.uvB * u + triangle.uvC * v;
+	hit_info.front_face = delta >= 0.0;
+	hit_info.normal *= hit_info.front_face ? 1.0 : -1.0;
 	
 	//float face_direction = sign(dot(ray.dir, hit_info.normal));
 	//hit_info.normal *= -face_direction;

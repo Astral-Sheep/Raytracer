@@ -90,7 +90,7 @@ specularProbability = 0.02
 metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_dcpae"]
-size = Vector2(0.40539736, 0.1414682)
+size = Vector2(0.39752293, 0.1414682)
 orientation = 2
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_0l1od"]
@@ -196,7 +196,7 @@ shader_parameter/enable_environment = false
 shader_parameter/horizon_color = Color(0, 0, 0, 1)
 shader_parameter/zenith_color = Color(0, 0, 0, 1)
 shader_parameter/ground_color = Color(0, 0, 0, 1)
-shader_parameter/plane_size = Vector2(0.21645258, 0.14006752)
+shader_parameter/plane_size = Vector2(0.40649152, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 shader_parameter/enable_accumulation = false

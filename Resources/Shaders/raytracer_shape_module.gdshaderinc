@@ -5,9 +5,10 @@
 const int MAX_BVH_DEPTH = 50;
 
 // ===== SHAPE TYPES =====
-const int BOUNDING_VOLUME = 0;
-const int SPHERE = 1;
+const int BOUNDING_VOLUME = 1;
 const int MESH = 2;
+const int SUBMESH = 3;
+const int SPHERE = 4;
 
 // ===== DATA SIZES =====
 
@@ -16,6 +17,7 @@ const int SHAPE_DATA_SIZE = 2;
 const float BV_DATA_SIZE = 0.5;
 const float SPHERE_DATA_SIZE = 1.25;
 const float MESH_DATA_SIZE = 4.75;
+const float SUBMESH_DATA_SIZE = 0.75;
 
 // Mesh
 const int VERTEX_DATA_SIZE = 2;
@@ -60,21 +62,29 @@ struct Shape
 
 struct BoundingVolume
 {
-	int child0;
-	int child1;
+	int start_index;
+	int tri_count;
 };
 
 struct Sphere
 {
 	SpherePrimitive primitive;
+	vec3 scale;
 	int material_index;
 };
 
 struct Mesh
 {
-	int tri_start;
+	int start_index;
 	int tri_count;
 	mat4 transform;
+	int material_index;
+};
+
+struct Submesh
+{
+	int start_index;
+	int tri_count;
 	int material_index;
 };
 
@@ -137,7 +147,7 @@ Material get_material(in int index)
 		(raw_bytes.x & 0xFFFF00) >> 8 - (MIN_SHORT + 1), // texture_index
 		vec3(float((raw_bytes.x & 0xFF000000) >> 24) * INV_255, float(raw_bytes.y & 0xFF) * INV_255, float((raw_bytes.y & 0xFF00) >> 8) * INV_255), // color
 		vec3(float((raw_bytes.y & 0xFF0000) >> 16) * INV_255, float((raw_bytes.y & 0xFF000000) >> 24) * INV_255, float(raw_bytes.z & 0xFF) * INV_255), // emissive
-		intBitsToFloat((raw_bytes.z & 0xFFFF00) >> 8), // emissive_intensity
+		halfBitsToFloat((raw_bytes.z & 0xFFFF00) >> 8), // emissive_intensity
 		float((raw_bytes.z & 0xFF000000) >> 24) * INV_255, // smoothness
 		vec3(float(raw_bytes.w & 0xFF) * INV_255, float((raw_bytes.w & 0xFF00) >> 8) * INV_255, float((raw_bytes.w & 0xFF0000) >> 16) * INV_255), // specular_color
 		float((raw_bytes.w & 0xFF000000) >> 24) * INV_255 // specular_probability
@@ -166,8 +176,8 @@ BoundingVolume get_bounding_volume(in int texel_index)
 	vec4 texel = get_buffer_texel(data_buffer, texel_index, shape_buffer_size);
 	
 	return BoundingVolume(
-		floatBitsToInt(texel.x), // child0
-		floatBitsToInt(texel.y) // child1
+		floatBitsToInt(texel.x), // start_index
+		floatBitsToInt(texel.y) // tri_count
 	);
 }
 
@@ -181,7 +191,8 @@ Sphere get_sphere(in int texel_index)
 			raw_data0.xyz, // center
 			raw_data0.w // radius
 		),
-		floatBitsToInt(raw_data1.x) // material_index
+		raw_data1.xyz, // scale
+		floatBitsToInt(raw_data1.w) // material_index
 	);
 }
 
@@ -194,7 +205,7 @@ Mesh get_mesh(in int texel_index)
 	vec4 raw_data4 = get_buffer_texel(data_buffer, texel_index + 4, data_buffer_size);
 	
 	return Mesh(
-		floatBitsToInt(raw_data0.x), // tri_start
+		floatBitsToInt(raw_data0.x), // start_index
 		floatBitsToInt(raw_data0.y), // tri_count
 		mat4(
 			vec4(raw_data0.zw, raw_data1.xy),
@@ -203,6 +214,16 @@ Mesh get_mesh(in int texel_index)
 			vec4(raw_data3.zw, raw_data4.xy)
 		), // transform
 		floatBitsToInt(raw_data4.z) // material_index
+	);
+}
+
+Submesh get_submesh(in int texel_index)
+{
+	vec4 raw_data = get_buffer_texel(data_buffer, texel_index, data_buffer_size);
+	return Submesh(
+		floatBitsToInt(raw_data.x), // start_index
+		floatBitsToInt(raw_data.y), // tri_count
+		floatBitsToInt(raw_data.z) // material_index
 	);
 }
 
@@ -261,18 +282,13 @@ HitInfo ray_mesh(
 {
 	HitInfo info = get_empty_hit();
 	
-	//if (!ray_box(ray, mesh.bound_min, mesh.bound_max, max_dist))
-	//{
-		//return info;
-	//}
-	
 	mat4 world_to_local = inverse(mesh.transform);
 	Ray local_ray;
 	local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
 	local_ray.dir = normalize((world_to_local * vec4(ray.dir, 0.0)).xyz);
 	local_ray.invdir = 1.0 / local_ray.dir;
 	
-	for (int i = mesh.tri_start; i < mesh.tri_start + mesh.tri_count; i++)
+	for (int i = mesh.start_index; i < mesh.start_index + mesh.tri_count; i++)
 	{
 		TrianglePrimitive primitive = get_triangle_primitive(get_triangle(i));
 		HitInfo triangle_hit = ray_triangle(local_ray, primitive);
@@ -281,13 +297,17 @@ HitInfo ray_mesh(
 		++tri_test_count;
 #endif //DEBUG
 		
-		// WARN: mesh scale can interfer with distance test, dist needs to be unscaled before test
-		if (!triangle_hit.hit || triangle_hit.dist >= info.dist)
+		if (!triangle_hit.hit)
+			continue;
+		
+		triangle_hit.point = (mesh.transform * vec4(triangle_hit.point, 1.0)).xyz;
+		triangle_hit.dist = length(triangle_hit.point - ray.origin);
+		
+		if (triangle_hit.dist >= info.dist)
 			continue;
 		
 		// OPT: transform data only on final hit if there is one
-		// Needs to be profiled to ensure that a condition is faster than 2 matrix multiplications
-		triangle_hit.point = (mesh.transform * vec4(triangle_hit.point, 1.0)).xyz;
+		// Needs to be profiled to ensure that a condition is faster than a matrix multiplication
 		triangle_hit.normal = normalize((mesh.transform * vec4(triangle_hit.normal, 0.0)).xyz);
 		info = triangle_hit;
 	}
@@ -337,8 +357,8 @@ HitResult trace_ray_collision(
 					break;
 				
 				BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
-				Shape child0 = get_shape(volume.child0);
-				Shape child1 = get_shape(volume.child1);
+				Shape child0 = get_shape(volume.start_index);
+				Shape child1 = get_shape(volume.start_index + 1);
 				
 				float dist0 = length_squared((child0.bound_max + child0.bound_min) * 0.5 - ray.origin);
 				float dist1 = length_squared((child1.bound_max + child1.bound_min) * 0.5 - ray.origin);
@@ -383,7 +403,10 @@ HitResult trace_ray_collision(
 			{
 				--stack_index;
 				Sphere sphere = get_sphere(shape.data_texel_index);
-				HitInfo hit_info = ray_sphere(ray, sphere.primitive);
+				Ray local_ray;
+				local_ray.origin = ray.origin / sphere.scale;
+				local_ray.dir = normalize(ray.dir / sphere.scale);
+				HitInfo hit_info = ray_sphere(local_ray, sphere.primitive);
 				
 #if DEBUG
 				++tri_test_count;

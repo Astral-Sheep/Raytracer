@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Astral.Raytracer;
 
-public struct Shape : IShaderData
+public struct ShapeData : IShaderData
 {
 	public int type;
 	public int dataTexelIndex;
@@ -17,23 +17,23 @@ public struct Shape : IShaderData
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write(type);
-				lWriter.Write(dataTexelIndex);
-
 				lWriter.Write(boundMin.x);
 				lWriter.Write(boundMin.y);
 				lWriter.Write(boundMin.z);
+				lWriter.Write(type);
 
 				lWriter.Write(boundMax.x);
 				lWriter.Write(boundMax.y);
 				lWriter.Write(boundMax.z);
+				lWriter.Write(dataTexelIndex);
 
-				int lSize = GetMarshalSize();
-
-				if (lSize % Raytracer.TEXEL_SIZE != 0)
-				{
-					lWriter.Write(new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE]);
-				}
+				// Uncomment this if the struct is not properly aligned
+				// int lSize = GetMarshalSize();
+				//
+				// if (lSize % Raytracer.TEXEL_SIZE != 0)
+				// {
+				// 	lWriter.Write(new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE]);
+				// }
 			}
 
 			return lStream.ToArray();
@@ -43,12 +43,12 @@ public struct Shape : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMarshalSize()
 	{
-		return Marshal.SizeOf<Shape>();
+		return Marshal.SizeOf<ShapeData>();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float GetTexelSize()
 	{
-		return GetMarshalSize() / 16f;
+		return GetMarshalSize() / (float)Raytracer.TEXEL_SIZE;
 	}
 }

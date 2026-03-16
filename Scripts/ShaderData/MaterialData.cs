@@ -8,9 +8,9 @@ using Godot;
 
 namespace Astral.Raytracer;
 
-public struct Material : IShaderData
+public struct MaterialData : IShaderData
 {
-	public static Material Default => new Material {
+	public static MaterialData Default => new MaterialData {
 		type = (int)EMaterialType.Opaque,
 		textureIndex = short.MinValue,
 		color = new Vec3<byte>(255),
@@ -70,39 +70,39 @@ public struct Material : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMarshalSize()
 	{
-		return Marshal.SizeOf<Material>();
+		return Marshal.SizeOf<MaterialData>();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float GetTexelSize()
 	{
-		return GetMarshalSize() / 16f;
+		return GetMarshalSize() / (float)Raytracer.TEXEL_SIZE;
 	}
 
-	public static (bool, Material) FromResource(Godot.Material pMaterial, Dictionary<Texture2D, int> pTextureMap)
+	public static (bool handled, MaterialData material) FromResource(Godot.Material pMaterial, Dictionary<Texture2D, int> pTextureMap)
 	{
 		switch (pMaterial)
 		{
 			case BaseMaterial3D lBaseMaterial:
 				return (true, FromBaseMaterial3D(lBaseMaterial, pTextureMap));
 			case RaytracedMaterial lRaytracedMaterial:
-				return (true, lRaytracedMaterial.GetShaderData(pTextureMap));
+				return (true, FromRaytracedMaterial(lRaytracedMaterial, pTextureMap));
 			default:
-				GD.PushWarning($"Shaders of type {pMaterial.GetType().Name} is not supported for raytracing");
+				GD.PushWarning($"Shaders of type {pMaterial.GetType().Name} are not supported for raytracing.\nSupported types are: {nameof(RaytracedMaterial)} and {nameof(BaseMaterial3D)}");
 				return (false, Default);
 		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static Material FromBaseMaterial3D(BaseMaterial3D pMaterial, Dictionary<Texture2D, int> pTextureMap)
+	private static MaterialData FromBaseMaterial3D(BaseMaterial3D pMaterial, Dictionary<Texture2D, int> pTextureMap)
 	{
 		uint lAlbedo = pMaterial.AlbedoColor.ToRgba32();
 		uint lEmissive = pMaterial.Emission.ToRgba32();
 		uint lSpecularColor = pMaterial.AlbedoColor.Lerp(Colors.White, 1f - pMaterial.Metallic).ToRgba32();
 
-		return new Material {
+		return new MaterialData {
 			// TODO: handle other types like transparent materials
-			type = (int)EMaterialType.Opaque,
+			type = (byte)EMaterialType.Opaque,
 			textureIndex = (short)(pTextureMap.GetValueOrDefault(pMaterial.AlbedoTexture, -1) + (short.MinValue + 1)),
 			color = fromUVariant(lAlbedo).rgb,
 			emissive = pMaterial.EmissionEnabled ? fromUVariant(lEmissive).rgb : new Vec3<byte>(0),
@@ -110,6 +110,22 @@ public struct Material : IShaderData
 			smoothness = (byte)Mathf.RoundToInt(Mathf.Clamp(1f - pMaterial.Roughness, 0f, 1f) * 255f),
 			specularColor = fromUVariant(lSpecularColor).rgb,
 			specularProbability = (byte)Mathf.RoundToInt(Mathf.Clamp(pMaterial.MetallicSpecular, 0, 1) * 255f),
+		};
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static MaterialData FromRaytracedMaterial(RaytracedMaterial pMaterial, Dictionary<Texture2D, int> pTextureMap)
+	{
+		return new MaterialData {
+			// TODO: handle other types like transparent materials
+			type = (byte)pMaterial.type,
+			textureIndex = (short)(pTextureMap.GetValueOrDefault(pMaterial.texture, -1) + (short.MinValue + 1)),
+			color = fromUVariant(pMaterial.color.ToRgba32()).rgb,
+			emissive = fromUVariant(pMaterial.emissive.ToRgba32()).rgb,
+			emissiveIntensity = (Half)pMaterial.emissiveIntensity,
+			smoothness = (byte)Mathf.RoundToInt(pMaterial.smoothness * 255f),
+			specularColor = fromUVariant(pMaterial.specularColor.ToRgba32()).rgb,
+			specularProbability = (byte)Mathf.RoundToInt(pMaterial.specularProbability * 255f),
 		};
 	}
 }

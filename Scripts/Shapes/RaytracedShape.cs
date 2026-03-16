@@ -14,16 +14,23 @@ public interface IRaytracedShape : IRaytracedObject
 	const float INV_SHAPE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SHAPE_DATA_SIZE);
 
 	ERaytracedShapeType Type { get; }
-	RaytracedMaterial Material { get; }
+	Material Material { get; }
 	ShapeBounds Bounds { get; }
+
+	ShapeData GetShapeData(int pTexelIndex);
 }
 
 public enum ERaytracedShapeType : byte
 {
-	BoundingVolume = 0,
-	Sphere = 1,
+	None = 0,
+	BoundingVolume = 1,
 	Mesh = 2,
-	Box = 3,
+	Submesh = 3,
+	Sphere = 4,
+	/// <summary>
+	/// Not handled currently
+	/// </summary>
+	Box = 5,
 }
 
 public struct ShapeBounds
@@ -54,19 +61,19 @@ public static class RaytracedShapeExtensions
 		pRemover?.Invoke(pShape, pRaytracer);
 	}
 
-	public static byte[] GetShapeBytes(this IRaytracedShape pShape, int pDataIndex, int pMaterialIndex)
-	{
-		using (MemoryStream lStream = new MemoryStream())
-		{
-			using (BinaryWriter lWriter = new BinaryWriter(lStream))
-			{
-				// No padding needed: the shader handles the data as an array of ints and not an array of texels
-				lWriter.Write((int)pShape.Type + 1);
-				lWriter.Write(pDataIndex);
-				lWriter.Write(pMaterialIndex);
-			}
-
-			return lStream.ToArray();
-		}
-	}
+	// public static byte[] GetShapeBytes(this IRaytracedShape pShape, int pDataIndex, int pMaterialIndex)
+	// {
+	// 	using (MemoryStream lStream = new MemoryStream())
+	// 	{
+	// 		using (BinaryWriter lWriter = new BinaryWriter(lStream))
+	// 		{
+	// 			// No padding needed: the shader handles the data as an array of ints and not an array of texels
+	// 			lWriter.Write((int)pShape.Type + 1);
+	// 			lWriter.Write(pDataIndex);
+	// 			lWriter.Write(pMaterialIndex);
+	// 		}
+	//
+	// 		return lStream.ToArray();
+	// 	}
+	// }
 }

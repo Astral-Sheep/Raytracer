@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Astral.Tools;
@@ -53,5 +54,17 @@ public static class CollectionExtensions
 	public static T[] Remove<T>(T[] pArray, T pItem)
 	{
 		return RemoveAt(pArray, IndexOf(pArray, pItem));
+	}
+
+	public static IEnumerable<int> GetSteppedRange(int pFromInclusive, int pToExclusive, int pStep)
+	{
+		int[] lRange = new int[(int)Math.Ceiling((pToExclusive - pFromInclusive) / (float)pStep)];
+
+		for (int i = pFromInclusive; i < pToExclusive; i += pStep)
+		{
+			lRange[i / pStep] = i;
+		}
+
+		return lRange;
 	}
 }

@@ -10,15 +10,10 @@ config_version=5
 
 [application]
 
-config/name="Raytracer"
+config/name="Pathtracer"
 run/main_scene="uid://utehbhwhvvsd"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="uid://cgy2l1cyar0ea"
-
-[debug_draw_3d]
-
-settings/addon_root_folder="res://addons/debug_draw_3d"
-settings/3d/volumetric_defaults/thickness=0.0
 
 [dotnet]
 
@@ -32,3 +27,5 @@ project/assembly_name="Raytracer"
 
 rendering_device/driver.windows="d3d12"
 driver/threads/thread_model=2
+raytracing/bvh_global_depth=32
+raytracing/bvh_mesh_depth=32

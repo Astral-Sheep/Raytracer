@@ -1,13 +1,17 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Astral.Tools;
+using Godot;
 
 namespace Astral.Raytracer;
 
-public struct BoundingVolume : IShaderData
+public struct MeshData : IShaderData
 {
-	public int child0;
-	public int child1;
+	public int startIndex;
+	public int count;
+	public mat4 transform;
+	public int materialIndex;
 
 	public byte[] GetBytes()
 	{
@@ -15,8 +19,18 @@ public struct BoundingVolume : IShaderData
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write(child0);
-				lWriter.Write(child1);
+				// 64 bytes
+				for (int i = 0; i < 4; i++)
+				{
+					for (int j = 0; j < 4; j++)
+					{
+						lWriter.Write(transform[i, j]);
+					}
+				}
+
+				lWriter.Write(startIndex); // 68
+				lWriter.Write(count); // 72
+				lWriter.Write(materialIndex); // 76
 
 				int lSize = GetMarshalSize();
 
@@ -33,12 +47,13 @@ public struct BoundingVolume : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMarshalSize()
 	{
-		return Marshal.SizeOf<BoundingVolume>();
+		return Marshal.SizeOf<MeshData>();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static float GetTexelSize()
+	public static int GetTexelSize()
 	{
-		return GetMarshalSize() / 16f;
+		// Ceiled to take padding into account
+		return Mathf.CeilToInt(GetMarshalSize() / (float)Raytracer.TEXEL_SIZE);
 	}
 }

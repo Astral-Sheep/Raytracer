@@ -27,7 +27,7 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 		}
 	}
 
-	[Export] public new RaytracedMaterial Material { get; protected set; }
+	// [Export] public Material Material { get; protected set; }
 	[Export] protected Raytracer raytracer;
 
 	[ExportToolButton("Add to Raytracer")]
@@ -59,31 +59,42 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public Sphere GetShaderData(Dictionary<Godot.Material, int> pMaterialMap)
+	public ShapeData GetShapeData(int pTexelIndex)
 	{
-		return new Sphere {
+		return new ShapeData {
+			type = (int)ERaytracedShapeType.Sphere,
+			dataTexelIndex = pTexelIndex,
+			boundMin = Bounds.min,
+			boundMax = Bounds.max,
+		};
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public SphereData GetShaderData(Dictionary<Material, int> pMaterialMap)
+	{
+		return new SphereData {
 			center = new vec3(GlobalPosition.X, GlobalPosition.Y, GlobalPosition.Z),
 			radius = Radius * GlobalBasis.Scale.X,
 			materialIndex = pMaterialMap.GetValueOrDefault(Material, 0)
 		};
 	}
 
-	public byte[] GetBytes()
-	{
-		using (MemoryStream lStream = new MemoryStream())
-		{
-			using (BinaryWriter lWriter = new BinaryWriter(lStream))
-			{
-				// Sphere shape
-				lWriter.Write(GlobalPosition.X); // 0
-				lWriter.Write(GlobalPosition.Y); // 1
-				lWriter.Write(GlobalPosition.Z); // 2
-				lWriter.Write(Radius); // 3
-			}
-
-			return lStream.ToArray();
-		}
-	}
+	// public byte[] GetBytes()
+	// {
+	// 	using (MemoryStream lStream = new MemoryStream())
+	// 	{
+	// 		using (BinaryWriter lWriter = new BinaryWriter(lStream))
+	// 		{
+	// 			// Sphere shape
+	// 			lWriter.Write(GlobalPosition.X); // 0
+	// 			lWriter.Write(GlobalPosition.Y); // 1
+	// 			lWriter.Write(GlobalPosition.Z); // 2
+	// 			lWriter.Write(Radius); // 3
+	// 		}
+	//
+	// 		return lStream.ToArray();
+	// 	}
+	// }
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()

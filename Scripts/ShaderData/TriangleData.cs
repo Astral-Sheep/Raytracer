@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 
 namespace Astral.Raytracer;
 
-public struct Triangle : IShaderData
+public struct TriangleData : IShaderData
 {
-	public int v0Index;
-	public int v1Index;
-	public int v2Index;
+	public int v0;
+	public int v1;
+	public int v2;
 
 	public byte[] GetBytes()
 	{
@@ -16,9 +16,10 @@ public struct Triangle : IShaderData
 		{
 			using (BinaryWriter lWriter = new BinaryWriter(lStream))
 			{
-				lWriter.Write(v0Index);
-				lWriter.Write(v1Index);
-				lWriter.Write(v2Index);
+				// No padding: the triangle buffer handles subtexel overlaps correctly
+				lWriter.Write(v0);
+				lWriter.Write(v1);
+				lWriter.Write(v2);
 			}
 
 			return lStream.ToArray();
@@ -28,12 +29,12 @@ public struct Triangle : IShaderData
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int GetMarshalSize()
 	{
-		return Marshal.SizeOf<Triangle>();
+		return Marshal.SizeOf<TriangleData>();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float GetTexelSize()
 	{
-		return GetMarshalSize() / 16f;
+		return GetMarshalSize() / (float)Raytracer.TEXEL_SIZE;
 	}
 }

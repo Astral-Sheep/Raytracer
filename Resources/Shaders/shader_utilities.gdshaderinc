@@ -209,3 +209,29 @@ ivec4 get_buffer_texel(isampler2D buffer, int texel_index, ivec2 buffer_size)
 {
 	return texelFetch(buffer, ivec2(texel_index % buffer_size.x, texel_index / buffer_size.x), 0);
 }
+
+float halfBitsToFloat(int x)
+{
+	int e = (x & 0x7C00) >> 10; // exponent
+    int m = (x & 0x03FF) << 13; // mantissa
+    int v = int(float(m)) >> 23; // evil log2 bit hack to count leading zeros in denormalized format
+    return intBitsToFloat(
+		(x & 0x8000) << 16
+		| int(e != 0) * ((e + 112) << 23 | m)
+		| (int(e == 0) & int(m != 0)) * ((v - 37) << 23 | ((m << (150 - v)) & 0x007FE000))
+	); // sign : normalized : denormalized
+	
+	//int float32Bits = 0;
+	//
+	//// Sign
+	//float32Bits |= (x & 0x8000) << 16;
+	//
+	//// Fraction
+	//float32Bits |= (x & 0x03FF) << 13;
+	//
+	//// Exponent
+	//int e = (x & 0x7C00) >> 10;
+	//float32Bits |= (x & 0x7C00);
+	//
+	//return intBitsToFloat(x);
+}
