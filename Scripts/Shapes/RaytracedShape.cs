@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using Astral.Tools;
 using Godot;
 
@@ -25,12 +23,14 @@ public enum ERaytracedShapeType : byte
 	None = 0,
 	BoundingVolume = 1,
 	Mesh = 2,
-	Submesh = 3,
-	Sphere = 4,
+	LeafMesh = 3,
+	MeshVolume = 4,
+	Submesh = 5,
+	Sphere = 6,
 	/// <summary>
 	/// Not handled currently
 	/// </summary>
-	Box = 5,
+	Box = 7,
 }
 
 public struct ShapeBounds
@@ -53,17 +53,6 @@ public static class RaytracedShapeExtensions
 		pRaytracer.AddShape(pShape);
 	}
 
-	// public static void AddToRaytracer<T>(this T pShape, ref Raytracer pRaytracer) where T : Node3D, IRaytracedObject
-	// {
-	// 	pRaytracer ??= pShape.FindNode<Raytracer>();
-	//
-	// 	if (pRaytracer == null)
-	// 		return;
-	//
-	// 	pRaytracer.AddShape(this);
-	// 	pAdder?.Invoke(pShape, pRaytracer);
-	// }
-
 	public static void RemoveShapeFromRaytracer<T>(this T pShape, Raytracer pRaytracer) where T : Node3D, IRaytracedShape
 	{
 		if (pRaytracer == null)
@@ -71,20 +60,4 @@ public static class RaytracedShapeExtensions
 
 		pRaytracer.RemoveShape(pShape);
 	}
-
-	// public static byte[] GetShapeBytes(this IRaytracedShape pShape, int pDataIndex, int pMaterialIndex)
-	// {
-	// 	using (MemoryStream lStream = new MemoryStream())
-	// 	{
-	// 		using (BinaryWriter lWriter = new BinaryWriter(lStream))
-	// 		{
-	// 			// No padding needed: the shader handles the data as an array of ints and not an array of texels
-	// 			lWriter.Write((int)pShape.Type + 1);
-	// 			lWriter.Write(pDataIndex);
-	// 			lWriter.Write(pMaterialIndex);
-	// 		}
-	//
-	// 		return lStream.ToArray();
-	// 	}
-	// }
 }

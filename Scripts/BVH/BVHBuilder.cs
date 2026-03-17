@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Astral.Tools;
 using Godot;
 
@@ -7,41 +8,59 @@ namespace Astral.Raytracer;
 
 public static class BVHBuilder
 {
-	public static int MaxDepth = GodotUtility.GetSetting<int>("rendering/raytracing/bvh_global_depth");
+	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/raytracing/bvh_global_depth");
 
-	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap)
+	public static IBVHVolume GenerateBVH(IRaytracedShape[] pShapes)
 	{
 		if (pShapes is not { Length: > 0 })
 		{
-			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] No shapes to order. Returning empty buffers");
-			return new BVHResult {
-				shapeBuffer = Array.Empty<byte>(),
-				dataBuffer = Array.Empty<byte>(),
-				vertexBuffer = Array.Empty<byte>(),
-				triangleBuffer = Array.Empty<byte>(),
-			};
+			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] No shapes to order. Returning empty hierarchy");
+			return null;
 		}
 
-		// === Build ===
 		BVHGlobalVolume lRoot = new BVHGlobalVolume(pShapes);
 		lRoot.Split(MaxDepth);
 
-		if (lRoot.childVolumes.Count == 0 && lRoot.childShapes.Count == 1)
+		if (lRoot.childVolumes.Count == 1 && lRoot.childShapes.Count <= 0)
 		{
-			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] Only 1 shape ordered. Returning shape without hierarchy");
-			IRaytracedShape lShape = lRoot.childShapes[0];
-			return new BVHResult {
-				shapeBuffer = lShape.GetShapeData(0).GetBytes(),
-				dataBuffer = lShape switch {
-					RaytracedSphere lSphere => lSphere.GetShaderData(pMaterialMap).GetBytes(),
-					_ => Array.Empty<byte>(),
-				},
-				vertexBuffer = Array.Empty<byte>(),
-				triangleBuffer = Array.Empty<byte>(),
-			};
+			return lRoot.childVolumes[0];
 		}
 
-		// === Data formatting ===
+		return lRoot;
+	}
+
+	public static BVHResult BuildBVH(IBVHVolume pRoot, Dictionary<Material, int> pMaterialMap)
+	{
+		if (pRoot == null)
+		{
+			return BVHResult.Empty;
+		}
+
+		switch (pRoot)
+		{
+			case BVHGlobalVolume lVolume:
+			{
+				if (lVolume.childVolumes.Count > 0 || lVolume.childShapes.Count != 1)
+					break;
+
+				GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] Only 1 shape ordered. Returning shape without hierarchy");
+				IRaytracedShape lShape = lVolume.childShapes[0];
+				return new BVHResult {
+					shapeBuffer = lShape.GetShapeData(0).GetBytes(),
+					dataBuffer = lShape switch {
+						RaytracedSphere lSphere => lSphere.GetShaderData(pMaterialMap).GetBytes(),
+						_ => Array.Empty<byte>(),
+					},
+					vertexBuffer = Array.Empty<byte>(),
+					triangleBuffer = Array.Empty<byte>(),
+				};
+			}
+			case BVHMeshVolume or BVHSubmesh:
+				GD.PushError($"Ill formed BVH: root is {pRoot.GetType().Name}");
+				return BVHResult.Empty;
+			default:
+				break;
+		}
 
 		// Buffers
 		List<byte> lShapes = new List<byte>();
@@ -52,7 +71,7 @@ public static class BVHBuilder
 		// Hierarchy
 		List<IBVHVolume> lVolumes = new List<IBVHVolume>();
 		Dictionary<Mesh, (int start, int count)> lBuiltMeshes = new Dictionary<Mesh, (int start, int count)>();
-		lVolumes.Add(lRoot);
+		lVolumes.Add(pRoot);
 
 		int lCurrentVolume = 0;
 		int lChildOffset = 0;
@@ -134,8 +153,6 @@ public static class BVHBuilder
 			++lCurrentVolume;
 		}
 
-		GD.PrintRich($"[color=#34EBEB][lb]BVH[rb][/color] Ordered {pShapes.Length} shapes into {lVolumes.Count} volumes and {lChildOffset} primitives");
-
 		return new BVHResult {
 			shapeBuffer = lShapes.ToArray(),
 			dataBuffer = lData.ToArray(),
@@ -144,24 +161,59 @@ public static class BVHBuilder
 		};
 	}
 
-	public static vec3 GetSplitAxis(IBVHVolume pVolume)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap)
 	{
-		vec3 lAxis = (pVolume.Min + pVolume.Max) * .5f;
+		return BuildBVH(GenerateBVH(pShapes), pMaterialMap);
+	}
 
-		// Mathf.Inf is used because we compare with lessThan. -Mathf.Inf should be used if compared with greaterThan
-		if (lAxis.x > lAxis.y && lAxis.x > lAxis.z)
+	public static (bool splittable, vec3 axis) GetSplitAxis(IBVHVolume pVolume)
+	{
+		const int AXIS_TEST = 10;
+
+		vec3 lStep = (pVolume.Max - pVolume.Min) / (AXIS_TEST + 1f);
+		vec3 lStart = pVolume.Min + lStep;
+		vec3 lSize = abs(pVolume.Max - pVolume.Min);
+
+		vec3 lBestAxis = new vec3(float.NaN);
+		float lBestScore = lSize.x * lSize.y * lSize.z * pVolume.ChildCount;
+
+		for (int i = 0; i < AXIS_TEST; i++)
 		{
-			lAxis = new vec3(lAxis.x, Mathf.Inf, Mathf.Inf);
-		}
-		else if (lAxis.y > lAxis.z)
-		{
-			lAxis = new vec3(Mathf.Inf, lAxis.y, Mathf.Inf);
-		}
-		else
-		{
-			lAxis = new vec3(Mathf.Inf, Mathf.Inf, lAxis.z);
+			vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
+			float lScore = pVolume.GetSplitScore(lAxis);
+
+			if (pVolume.GetSplitScore(lAxis) < lBestScore)
+			{
+				lBestAxis = lAxis;
+				lBestScore = lScore;
+			}
 		}
 
-		return lAxis;
+		for (int i = 0; i < AXIS_TEST; i++)
+		{
+			vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
+			float lScore = pVolume.GetSplitScore(lAxis);
+
+			if (pVolume.GetSplitScore(lAxis) < lBestScore)
+			{
+				lBestAxis = lAxis;
+				lBestScore = lScore;
+			}
+		}
+
+		for (int i = 0; i < AXIS_TEST; i++)
+		{
+			vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
+			float lScore = pVolume.GetSplitScore(lAxis);
+
+			if (pVolume.GetSplitScore(lAxis) < lBestScore)
+			{
+				lBestAxis = lAxis;
+				lBestScore = lScore;
+			}
+		}
+
+		return (!float.IsNaN(lBestAxis.x), lBestAxis);
 	}
 }

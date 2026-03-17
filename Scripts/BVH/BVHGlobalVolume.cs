@@ -11,6 +11,7 @@ public class BVHGlobalVolume : IBVHVolume
 {
 	public vec3 Min { get; private set; }
 	public vec3 Max { get; private set; }
+	public int ChildCount { get; private set; }
 
 	public readonly List<IRaytracedShape> childShapes = new List<IRaytracedShape>();
 	public readonly List<IBVHVolume> childVolumes = new List<IBVHVolume>();
@@ -29,6 +30,7 @@ public class BVHGlobalVolume : IBVHVolume
 		Min = new vec3(0f);
 		Max = new vec3(0f);
 		childShapes = new List<IRaytracedShape>(pShapes ?? Array.Empty<IRaytracedShape>());
+		ChildCount = childShapes.Count;
 		builtMeshes = pBuiltMeshes ?? new Dictionary<Mesh, BVHMesh>();
 
 		for (int i = 0; i < childShapes.Count; i++)
@@ -53,19 +55,30 @@ public class BVHGlobalVolume : IBVHVolume
 		Min = min(Min, pShape.Bounds.min);
 		Max = max(Max, pShape.Bounds.max);
 		childShapes.Add(pShape);
+		++ChildCount;
 	}
 
 	public int Split(int pMaxDepth = 1, int pVertexIndexOffset = 0)
 	{
-		if (pMaxDepth <= 0 || childVolumes.Count > 0 || childShapes.Count <= 2)
+		if (childVolumes.Count > 0)
 		{
 			return pVertexIndexOffset;
 		}
 
+		if (pMaxDepth <= 0 || childShapes.Count <= 2)
+		{
+			return SplitLeafMeshes(pVertexIndexOffset);
+		}
+
+		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
+
+		if (!lSplittable)
+		{
+			return SplitLeafMeshes(pVertexIndexOffset);
+		}
+
 		BVHGlobalVolume lChild0 = new BVHGlobalVolume(pBuiltMeshes: builtMeshes);
 		BVHGlobalVolume lChild1 = new BVHGlobalVolume(pBuiltMeshes: builtMeshes);
-
-		vec3 lSplitAxis = BVHBuilder.GetSplitAxis(this);
 
 		for (int i = 0; i < childShapes.Count; i++)
 		{
@@ -94,20 +107,7 @@ public class BVHGlobalVolume : IBVHVolume
 		{
 			if (pVolume.childShapes.Count > 0 && pVolume.childShapes[0] is RaytracedMesh lMesh)
 			{
-				BVHMesh lBVHMesh = new BVHMesh(lMesh);
-
-				if (builtMeshes.TryGetValue(lMesh.Mesh, out BVHMesh lBuiltMesh))
-				{
-					lBVHMesh.GenerateTriangleBuffer(lBuiltMesh.VertexOffset);
-				}
-				else
-				{
-					pVertexIndexOffset = lBVHMesh.GenerateTriangleBuffer(pVertexIndexOffset);
-					pVertexIndexOffset = lBVHMesh.Split(BVHMesh.MaxDepth, pVertexIndexOffset);
-					builtMeshes.Add(lMesh.Mesh, lBVHMesh);
-				}
-
-				childVolumes.Add(lBVHMesh);
+				pVertexIndexOffset = SplitMesh(lMesh, pVertexIndexOffset);
 			}
 			else
 			{
@@ -119,6 +119,70 @@ public class BVHGlobalVolume : IBVHVolume
 			pVertexIndexOffset = pVolume.Split(pMaxDepth - 1, pVertexIndexOffset);
 			childVolumes.Add(pVolume);
 		}
+	}
+
+	private int SplitLeafMeshes(int pVertexIndexOffset)
+	{
+		for (int i = childShapes.Count - 1; i >= 0; i--)
+		{
+			if (childShapes[i] is not RaytracedMesh lMesh)
+				continue;
+
+			pVertexIndexOffset = SplitMesh(lMesh, pVertexIndexOffset);
+			childShapes.RemoveAt(i);
+		}
+
+		return pVertexIndexOffset;
+	}
+
+	private int SplitMesh(RaytracedMesh pMesh, int pVertexIndexOffset)
+	{
+		BVHMesh lBVHMesh = new BVHMesh(pMesh);
+
+		if (builtMeshes.TryGetValue(pMesh.Mesh, out BVHMesh lBuiltMesh))
+		{
+			lBVHMesh.GenerateTriangleBuffer(lBuiltMesh.VertexOffset);
+		}
+		else
+		{
+			int lIndexOffset = pVertexIndexOffset;
+			pVertexIndexOffset = lBVHMesh.GenerateTriangleBuffer(pVertexIndexOffset);
+			lBVHMesh.Split(BVHMesh.MaxDepth, lIndexOffset);
+			builtMeshes.Add(pMesh.Mesh, lBVHMesh);
+		}
+
+		childVolumes.Add(lBVHMesh);
+		return pVertexIndexOffset;
+	}
+
+	/// <summary>
+	/// Warning: this method only works if the volume wasn't split. I know it's a bad practice but I don't care
+	/// </summary>
+	public float GetSplitScore(vec3 pAxis)
+	{
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
+
+		for (int i = 0; i < childShapes.Count; i++)
+		{
+			IRaytracedShape lShape = childShapes[i];
+
+			if (all(lessThanEqual(lShape.Bounds.Center, pAxis)))
+			{
+				++lVolume0.count;
+				lVolume0.min = min(lVolume0.min, lShape.Bounds.min);
+				lVolume0.max = max(lVolume0.max, lShape.Bounds.max);
+			}
+			else
+			{
+				++lVolume1.count;
+				lVolume1.min = min(lVolume1.min, lShape.Bounds.min);
+				lVolume1.max = max(lVolume1.max, lShape.Bounds.max);
+			}
+		}
+
+		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
+			+ lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

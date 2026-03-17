@@ -16,6 +16,8 @@ public class BVHMesh : IBVHVolume
 
 	public vec3 Min { get; }
 	public vec3 Max { get; }
+	public int ChildCount { get; protected init; }
+
 	public Mesh Mesh => basis?.Mesh;
 	public VertexData[][] Vertices { get; }
 	public TriangleData[][] Triangles { get; }
@@ -39,6 +41,19 @@ public class BVHMesh : IBVHVolume
 		int lSurfaceCount = basis.Mesh.GetSurfaceCount();
 		Vertices = new VertexData[lSurfaceCount][];
 		Triangles = new TriangleData[lSurfaceCount][];
+
+		if (lSurfaceCount > 1)
+		{
+			ChildCount = lSurfaceCount;
+		}
+		else if (lSurfaceCount == 1)
+		{
+			ChildCount = basis.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Index].As<GArray>().Count / 3;
+		}
+		else
+		{
+			ChildCount = 0;
+		}
 
 		Parallel.For(0, lSurfaceCount, i => {
 			GArray lSurface = basis.Mesh.SurfaceGetArrays(i);
@@ -75,9 +90,9 @@ public class BVHMesh : IBVHVolume
 				lSubmeshTriangles.Length,
 				j => {
 					lSubmeshTriangles[j] = new TriangleData {
-						v0 = pVertexIndexOffset + j * 3,
-						v1 = pVertexIndexOffset + j * 3 + 1,
-						v2 = pVertexIndexOffset + j * 3 + 2,
+						v0 = pVertexIndexOffset + lTriangles[j * 3].As<int>(),
+						v1 = pVertexIndexOffset + lTriangles[j * 3 + 1].As<int>(),
+						v2 = pVertexIndexOffset + lTriangles[j * 3 + 2].As<int>(),
 					};
 				}
 			);
@@ -149,7 +164,10 @@ public class BVHMesh : IBVHVolume
 		if (lTriangles is not { Length: > 0 })
 			return;
 
-		vec3 lSplitAxis = BVHBuilder.GetSplitAxis(this);
+		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
+
+		if (!lSplittable)
+			return;
 
 		BVHMeshVolume lChild0 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], 0, 0, VertexOffset);
 		BVHMeshVolume lChild1 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], 0, 0, VertexOffset);
@@ -191,11 +209,58 @@ public class BVHMesh : IBVHVolume
 		children.Add(lChild1);
 	}
 
+	/// <summary>
+	/// Warning: if there is more than one surface, the result is always -1
+	/// </summary>
+	public float GetSplitScore(vec3 pAxis)
+	{
+		// If there is more than 1 surface, we don't care about the split axis 
+		if (basis.Mesh.GetSurfaceCount() > 1)
+			return -1f;
+
+		VertexData[] lVertices = Vertices[0];
+		TriangleData[] lTriangles = Triangles[0];
+		pAxis = (inverse(new mat4(basis.Transform)) * new vec4(pAxis, 0f)).xyz;
+
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
+
+		for (int i = 0; i < lTriangles.Length; i++)
+		{
+			TriangleData lTriangle = lTriangles[i];
+			vec3 lV0 = lVertices[lTriangle.v0 - VertexOffset].position;
+			vec3 lV1 = lVertices[lTriangle.v1 - VertexOffset].position;
+			vec3 lV2 = lVertices[lTriangle.v2 - VertexOffset].position;
+
+			vec3 lMin = min(lV0, min(lV1, lV2));
+			vec3 lMax = max(lV0, max(lV1, lV2));
+			vec3 lCenter = (lV0 + lV1 + lV2) / 3f;
+
+			if (all(lessThanEqual(lCenter, pAxis)))
+			{
+				++lVolume0.count;
+				lVolume0.min = min(lVolume0.min, lMin);
+				lVolume0.max = max(lVolume0.max, lMax);
+			}
+			else
+			{
+				++lVolume1.count;
+				lVolume1.min = min(lVolume1.min, lMin);
+				lVolume1.max = max(lVolume1.max, lMax);
+			}
+		}
+
+		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
+			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ShapeData GetShaderShape(int pTexelIndex)
 	{
 		return new ShapeData {
-			type = (int)ERaytracedShapeType.Mesh,
+			type = basis.Mesh.GetSurfaceCount() == 1 && children.Count == 0
+				? (int)ERaytracedShapeType.LeafMesh
+				: (int)ERaytracedShapeType.Mesh,
 			dataTexelIndex = pTexelIndex,
 			boundMin = Min,
 			boundMax = Max,

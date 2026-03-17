@@ -107,7 +107,7 @@ public partial class PostProcessLayer : MeshInstance3D
 	{
 		base._ExitTree();
 
-		if (Camera != null)
+		if (Camera?.GetViewport() != null)
 		{
 			Camera.GetViewport().SizeChanged -= OnSizeChanged;
 		}

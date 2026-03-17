@@ -7,6 +7,13 @@ namespace Astral.Raytracer;
 
 public class BVHResult
 {
+	public static BVHResult Empty => new BVHResult {
+		shapeBuffer = Array.Empty<byte>(),
+		dataBuffer = Array.Empty<byte>(),
+		vertexBuffer = Array.Empty<byte>(),
+		triangleBuffer = Array.Empty<byte>(),
+	};
+
 	public byte[] shapeBuffer;
 	public byte[] dataBuffer;
 	public byte[] vertexBuffer;

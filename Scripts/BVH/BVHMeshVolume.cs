@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -9,6 +10,7 @@ public class BVHMeshVolume : IBVHVolume
 {
 	public vec3 Min { get; private set; }
 	public vec3 Max { get; private set; }
+	public int ChildCount { get; private set; }
 
 	public readonly List<BVHMeshVolume> children = new List<BVHMeshVolume>();
 
@@ -27,6 +29,7 @@ public class BVHMeshVolume : IBVHVolume
 		vertexOffset = pVertexOffset;
 		vertices = pVertices;
 		triangles = pTriangles;
+		ChildCount = count;
 
 		for (int i = startIndex; i < startIndex + count; i++)
 		{
@@ -44,6 +47,8 @@ public class BVHMeshVolume : IBVHVolume
 	public void AddTriangle()
 	{
 		++count;
+		++ChildCount;
+
 		TriangleData lTriangle = triangles[startIndex + count - 1];
 		vec3 v0 = vertices[lTriangle.v0 - vertexOffset].position;
 		vec3 v1 = vertices[lTriangle.v1 - vertexOffset].position;
@@ -60,10 +65,15 @@ public class BVHMeshVolume : IBVHVolume
 			return vertexOffset;
 		}
 
+		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
+
+		if (!lSplittable)
+		{
+			return pVertexIndexOffset;
+		}
+
 		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
 		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
-
-		vec3 lSplitAxis = BVHBuilder.GetSplitAxis(this);
 
 		for (int i = startIndex; i < count; i++)
 		{
@@ -102,6 +112,43 @@ public class BVHMeshVolume : IBVHVolume
 		children.Add(lChild1);
 
 		return pVertexIndexOffset;
+	}
+
+	public float GetSplitScore(vec3 pAxis)
+	{
+		if (count < 2)
+			return -1f;
+
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
+
+		for (int i = 0; i < triangles.Length; i++)
+		{
+			TriangleData lTriangle = triangles[i];
+			vec3 lV0 = vertices[lTriangle.v0 - vertexOffset].position;
+			vec3 lV1 = vertices[lTriangle.v1 - vertexOffset].position;
+			vec3 lV2 = vertices[lTriangle.v2 - vertexOffset].position;
+
+			vec3 lMin = min(lV0, min(lV1, lV2));
+			vec3 lMax = max(lV0, max(lV1, lV2));
+			vec3 lCenter = (lV0 + lV1 + lV2) / 3f;
+
+			if (all(lessThanEqual(lCenter, pAxis)))
+			{
+				++lVolume0.count;
+				lVolume0.min = min(lVolume0.min, lMin);
+				lVolume0.max = max(lVolume0.max, lMax);
+			}
+			else
+			{
+				++lVolume1.count;
+				lVolume1.min = min(lVolume1.min, lMin);
+				lVolume1.max = max(lVolume1.max, lMax);
+			}
+		}
+
+		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
+			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

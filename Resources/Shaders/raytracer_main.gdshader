@@ -310,35 +310,35 @@ void fragment()
 {
 	ALBEDO.rgb = vec3(0.0);
 	
-	//uint rng_state = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
-	//vec3 origin = (local_to_world_matrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	//
-	//float focus_plane = near_clip_plane + focus_plane_distance_offset;
-	//vec3 local_view_point = vec3(SCREEN_UV.x - 0.5, 1.0 - SCREEN_UV.y - 0.5, -1.0) * vec3(plane_size * vec2(0.5) * (focus_plane / near_clip_plane), focus_plane);
-	//vec3 view_point = (local_to_world_matrix * vec4(local_view_point, 1.0)).xyz;
-	//
-	//switch (display_type)
-	//{
-		//case DISPLAY_DEFAULT:
-			//display(ALBEDO, SCREEN_UV, origin, view_point, VIEWPORT_SIZE.x, rng_state);
-			//break;
-		//case DISPLAY_NORMAL:
-			//debug_normal(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			//break;
-		//case DISPLAY_UNSHADED:
-			//debug_unshaded(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			//break;
-		//case DISPLAY_DEPTH:
-			//debug_depth(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			//break;
-		//case DISPLAY_BOUNCE_COUNT:
-			//debug_bounce_count(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
-			//break;
-		//case DISPLAY_TESTS:
-			//debug_tests(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
-			//break;
-		//case DISPLAY_RAY_UV:
-			//debug_ray_uv(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
-			//break;
-	//}
+	uint rng_state = uint(FRAGCOORD.x * VIEWPORT_SIZE.y + FRAGCOORD.y) + frame_count * 719393u;
+	vec3 origin = (local_to_world_matrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	
+	float focus_plane = near_clip_plane + focus_plane_distance_offset;
+	vec3 local_view_point = vec3(SCREEN_UV.x - 0.5, 1.0 - SCREEN_UV.y - 0.5, -1.0) * vec3(plane_size * vec2(0.5) * (focus_plane / near_clip_plane), focus_plane);
+	vec3 view_point = (local_to_world_matrix * vec4(local_view_point, 1.0)).xyz;
+	
+	switch (display_type)
+	{
+		case DISPLAY_DEFAULT:
+			display(ALBEDO, SCREEN_UV, origin, view_point, VIEWPORT_SIZE.x, rng_state);
+			break;
+		case DISPLAY_NORMAL:
+			debug_normal(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			break;
+		case DISPLAY_UNSHADED:
+			debug_unshaded(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			break;
+		case DISPLAY_DEPTH:
+			debug_depth(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			break;
+		case DISPLAY_BOUNCE_COUNT:
+			debug_bounce_count(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
+			break;
+		case DISPLAY_TESTS:
+			debug_tests(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state), rng_state);
+			break;
+		case DISPLAY_RAY_UV:
+			debug_ray_uv(ALBEDO, get_ray(origin, view_point, VIEWPORT_SIZE.x, false, rng_state));
+			break;
+	}
 }

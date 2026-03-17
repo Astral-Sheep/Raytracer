@@ -2,13 +2,16 @@
 
 #define DEBUG 1
 
-const int MAX_BVH_DEPTH = 50;
+const int GLOBAL_BVH_DEPTH = 32;
+const int MESH_BVH_DEPTH = 32;
 
 // ===== SHAPE TYPES =====
 const int BOUNDING_VOLUME = 1;
 const int MESH = 2;
-const int SUBMESH = 3;
-const int SPHERE = 4;
+const int LEAF_MESH = 3;
+const int MESH_VOLUME = 4;
+const int SUBMESH = 5;
+const int SPHERE = 6;
 
 // ===== DATA SIZES =====
 
@@ -63,7 +66,7 @@ struct Shape
 struct BoundingVolume
 {
 	int start_index;
-	int tri_count;
+	int count;
 };
 
 struct Sphere
@@ -76,7 +79,7 @@ struct Sphere
 struct Mesh
 {
 	int start_index;
-	int tri_count;
+	int count;
 	mat4 transform;
 	int material_index;
 };
@@ -84,7 +87,7 @@ struct Mesh
 struct Submesh
 {
 	int start_index;
-	int tri_count;
+	int count;
 	int material_index;
 };
 
@@ -271,16 +274,102 @@ TrianglePrimitive get_triangle_primitive(in MeshTriangle triangle)
 	);
 }
 
-HitInfo ray_mesh(
+HitResult ray_submesh(
+	in Ray ray,
+	in Submesh submesh,
+	in Mesh mesh,
+	in float max_dist
+#if DEBUG
+	, inout int tri_test_count
+#endif //DEBUG
+)
+{
+	HitResult result = HitResult(get_empty_hit(), -1);
+	
+	if (submesh.count <= 0)
+	{
+		const int MAX_LOOPS = (MESH_BVH_DEPTH + 1) * (MESH_BVH_DEPTH + 1);
+		int loop_count = 0;
+
+		int bvh_stack[MESH_BVH_DEPTH - 1];
+		int stack_index = -1;
+		
+		bvh_stack[stack_index + 1] = mesh.start_index;
+		
+		while (stack_index >= 0 && loop_count < MAX_LOOPS)
+		{
+			Shape shape = get_shape(bvh_stack[stack_index]);
+			
+			// Only MESH_VOLUME type is handled. No switch is needed
+			BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
+			
+			if (volume.count <= 0)
+			{
+				int last_child_index = bvh_stack[stack_index + 1];
+				
+				// First child to push
+				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + volume.count)
+				{
+					bvh_stack[stack_index + 1] = volume.start_index;
+					++stack_index;
+				}
+				// All children were pushed
+				else if (last_child_index == volume.start_index + volume.count - 1)
+				{
+					bvh_stack[stack_index + 1] = 0;
+					--stack_index;
+				}
+				else
+				{
+					++bvh_stack[stack_index + 1];
+					++stack_index;
+				}
+				
+				break;
+			}
+			
+			if (stack_index < 0 && bvh_stack[0] < submesh.start_index + submesh.count)
+			{
+				++bvh_stack[0];
+				stack_index = 0;
+			}
+		}
+	}
+	else
+	{
+		for (int i = submesh.start_index; i < submesh.start_index + submesh.count; i++)
+		{
+			TrianglePrimitive triangle = get_triangle_primitive(get_triangle(i));
+			HitInfo triangle_hit = ray_triangle(ray, triangle);
+			++tri_test_count;
+			
+			if (!triangle_hit.hit || triangle_hit.dist >= result.info.dist)
+				continue;
+			
+			triangle_hit.point = (mesh.transform * vec4(triangle_hit.point, 1.0)).xyz;
+			triangle_hit.dist = length_squared(triangle_hit.point - ray.origin);
+			
+			if (triangle_hit.dist >= result.info.dist)
+				continue;
+			
+			result = HitResult(triangle_hit, mesh.material_index);
+		}
+	}
+	
+	return result;
+}
+
+HitResult ray_mesh(
 	in Ray ray,
 	in Mesh mesh,
 	in float max_dist
 #if DEBUG
 	, inout int tri_test_count
-#endif // DEBUG
+#endif //DEBUG
 )
 {
-	HitInfo info = get_empty_hit();
+	HitResult result = HitResult(get_empty_hit(), -1);
+	result.info.dist = max_dist * max_dist;
 	
 	mat4 world_to_local = inverse(mesh.transform);
 	Ray local_ray;
@@ -288,31 +377,131 @@ HitInfo ray_mesh(
 	local_ray.dir = normalize((world_to_local * vec4(ray.dir, 0.0)).xyz);
 	local_ray.invdir = 1.0 / local_ray.dir;
 	
-	for (int i = mesh.start_index; i < mesh.start_index + mesh.tri_count; i++)
+	// -2 or less means that the mesh has more than one surface
+	if (mesh.material_index > -2)
 	{
-		TrianglePrimitive primitive = get_triangle_primitive(get_triangle(i));
-		HitInfo triangle_hit = ray_triangle(local_ray, primitive);
+		const int MAX_LOOPS = (MESH_BVH_DEPTH + 1) * (MESH_BVH_DEPTH + 1);
+		int loop_count = 0;
+
+		int bvh_stack[MESH_BVH_DEPTH];
+		int stack_index = -1;
 		
+		bvh_stack[stack_index + 1] = mesh.start_index;
+		
+		while (stack_index >= 0 && loop_count < MAX_LOOPS)
+		{
+			Shape shape = get_shape(bvh_stack[stack_index]);
+			
+			// Only MESH_VOLUME type is handled. No switch is needed
+			BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
+			
+			if (volume.count <= 0)
+			{
+				int last_child_index = bvh_stack[stack_index + 1];
+				
+				// First child to push
+				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + volume.count)
+				{
+					bvh_stack[stack_index + 1] = volume.start_index;
+					++stack_index;
+				}
+				// All children were pushed
+				else if (last_child_index == volume.start_index + volume.count - 1)
+				{
+					bvh_stack[stack_index + 1] = 0;
+					--stack_index;
+				}
+				else
+				{
+					++bvh_stack[stack_index + 1];
+					++stack_index;
+				}
+				
+				break;
+			}
+			
+			if (stack_index < 0 && bvh_stack[0] < mesh.start_index + mesh.count)
+			{
+				++bvh_stack[0];
+				stack_index = 0;
+			}
+		}
+	}
+	else
+	{
+		for (int i = mesh.start_index; i < mesh.start_index + mesh.count; i++)
+		{
+			Shape submesh = get_shape(i);
+			HitResult submesh_result = ray_submesh(
+				local_ray,
+				get_submesh(submesh.data_texel_index),
+				mesh,
+				result.info.dist
 #if DEBUG
-		++tri_test_count;
+				, tri_test_count
 #endif //DEBUG
+			);
+			
+			// ray_submesh already converts point and dist to global space
+			if (!submesh_result.info.hit || submesh_result.info.dist >= result.info.dist)
+				continue;
+			
+			result = submesh_result;
+		}
+	}
+	
+	if (result.info.hit)
+	{
+		result.info.dist = sqrt(result.info.dist);
+		result.info.normal = (mesh.transform * vec4(result.info.normal, 0.0)).xyz;
+	}
+	
+	return result;
+}
+
+HitResult ray_leaf_mesh(
+	in Ray ray,
+	in Mesh mesh,
+	in float max_dist
+#if DEBUG
+	, inout int tri_test_count
+#endif //DEBUG
+)
+{
+	HitResult result = HitResult(get_empty_hit(), -1);
+	result.info.dist = max_dist * max_dist;
+	
+	mat4 world_to_local = inverse(mesh.transform);
+	Ray local_ray;
+	local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
+	local_ray.dir = normalize((world_to_local * vec4(ray.dir, 0.0)).xyz);
+	local_ray.invdir = 1.0 / local_ray.dir;
+	
+	for (int i = mesh.start_index; i < mesh.start_index + mesh.count; i++)
+	{
+		TrianglePrimitive triangle = get_triangle_primitive(get_triangle(i));
+		HitInfo triangle_hit = ray_triangle(local_ray, triangle);
+		++tri_test_count;
 		
-		if (!triangle_hit.hit)
+		if (!triangle_hit.hit || triangle_hit.dist >= result.info.dist)
 			continue;
 		
 		triangle_hit.point = (mesh.transform * vec4(triangle_hit.point, 1.0)).xyz;
-		triangle_hit.dist = length(triangle_hit.point - ray.origin);
+		triangle_hit.dist = length_squared(triangle_hit.point - ray.origin);
 		
-		if (triangle_hit.dist >= info.dist)
+		if (triangle_hit.dist >= result.info.dist)
 			continue;
 		
-		// OPT: transform data only on final hit if there is one
-		// Needs to be profiled to ensure that a condition is faster than a matrix multiplication
-		triangle_hit.normal = normalize((mesh.transform * vec4(triangle_hit.normal, 0.0)).xyz);
-		info = triangle_hit;
+		result = HitResult(triangle_hit, mesh.material_index);
 	}
 	
-	return info;
+	if (result.info.hit)
+	{
+		result.info.dist = sqrt(result.info.dist);
+		result.info.normal = (mesh.transform * vec4(result.info.normal, 0.0)).xyz;
+	}
+	
+	return result;
 }
 
 HitResult trace_ray_collision(
@@ -324,25 +513,26 @@ HitResult trace_ray_collision(
 {
 	HitResult result = HitResult(get_empty_hit(), -1);
 	
-	if (shape_buffer_size.x * shape_buffer_size.y <= SHAPE_DATA_SIZE * 4)
+	if (shape_buffer_size.x * shape_buffer_size.y < SHAPE_DATA_SIZE)
 	{
 		return result;
 	}
 	
-	Shape bvh_stack[MAX_BVH_DEPTH];
+	const int MAX_LOOPS = (GLOBAL_BVH_DEPTH + 1) * (GLOBAL_BVH_DEPTH + 1);
+	int loop_count = 0;
+	
+	int bvh_stack[GLOBAL_BVH_DEPTH + 1];
 	int stack_index = -1;
 	
-	bvh_stack[stack_index + 1] = get_shape(0); // Add root to stack
+	bvh_stack[stack_index + 1] = 0; // Add root to stack
 	++stack_index;
-	
-	const int MAX_LOOPS = 1000;
-	int loop_count = 0;
 	
 	while (stack_index >= 0 && loop_count < MAX_LOOPS)
 	{
-		Shape shape = bvh_stack[stack_index];
+		++loop_count;
+		Shape shape = get_shape(bvh_stack[stack_index]);
 		
-		if (shape.type < 0 || shape.data_texel_index < 0)
+		if (shape.type < 1 || shape.data_texel_index < 0)
 			continue;
 		
 		if (!ray_box(ray, shape.bound_min, shape.bound_max, result.info.dist))
@@ -350,59 +540,80 @@ HitResult trace_ray_collision(
 		
 		switch (shape.type)
 		{
+			// Global bounding volume
 			case BOUNDING_VOLUME:
 			{
-				// Shape should be leaf but isn't
-				if (stack_index >= MAX_BVH_DEPTH - 1)
-					break;
-				
 				BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
-				Shape child0 = get_shape(volume.start_index);
-				Shape child1 = get_shape(volume.start_index + 1);
+				int last_child_index = bvh_stack[stack_index + 1];
 				
-				float dist0 = length_squared((child0.bound_max + child0.bound_min) * 0.5 - ray.origin);
-				float dist1 = length_squared((child1.bound_max + child1.bound_min) * 0.5 - ray.origin);
-				
-				if (dist0 > dist1)
+				// First child to push
+				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + volume.count)
 				{
-					Shape tmp = child1;
-					child1 = child0;
-					child0 = tmp;
-				}
-				
-				Shape stacked_child = bvh_stack[stack_index + 1];
-				
-				// Child 0 has been evaluated: child 1 should be stacked
-				if (
-					stacked_child.type == child0.type
-					&& stacked_child.data_texel_index == child0.data_texel_index
-				)
-				{
-					bvh_stack[stack_index + 1] = child1;
+					bvh_stack[stack_index + 1] = volume.start_index;
 					++stack_index;
 				}
-				// Child 1 has been evaluated: shape should be unstacked
-				else if (
-					stacked_child.type == child1.type
-					&& stacked_child.data_texel_index == child1.data_texel_index
-				)
+				// All children were pushed
+				else if (last_child_index == volume.start_index + volume.count - 1)
 				{
-					bvh_stack[stack_index + 1] = Shape(-1, -1, vec3(0.0), vec3(0.0));
+					bvh_stack[stack_index + 1] = 0;
 					--stack_index;
 				}
-				// No child has been evaluated: child 0 should be stacked
 				else
 				{
-					bvh_stack[stack_index + 1] = child0;
+					++bvh_stack[stack_index + 1];
 					++stack_index;
 				}
 				
 				break;
 			}
+			// Mesh bounding volume
+			case MESH:
+			{
+				--stack_index;
+				Mesh mesh = get_mesh(shape.data_texel_index);
+				HitResult mesh_result = ray_mesh(
+					ray,
+					mesh,
+					result.info.dist
+#if DEBUG
+					, tri_test_count
+#endif //DEBUG
+				);
+				
+				if (!mesh_result.info.hit || mesh_result.info.dist >= result.info.dist)
+					break;
+				
+				result = mesh_result;
+				break;
+			}
+			// Unordered mesh
+			case LEAF_MESH:
+			{
+				--stack_index;
+				
+				Mesh mesh = get_mesh(shape.data_texel_index);
+				HitResult mesh_result = ray_leaf_mesh(
+					ray,
+					mesh,
+					result.info.dist
+#if DEBUG
+					, tri_test_count
+#endif //DEBUG
+				);
+				
+				if (!mesh_result.info.hit || mesh_result.info.dist >= result.info.dist)
+					break;
+				
+				result = mesh_result;
+				break;
+			}
+			// Sphere primitive
 			case SPHERE:
 			{
 				--stack_index;
+				
 				Sphere sphere = get_sphere(shape.data_texel_index);
+				
 				Ray local_ray;
 				local_ray.origin = ray.origin / sphere.scale;
 				local_ray.dir = normalize(ray.dir / sphere.scale);
@@ -419,32 +630,10 @@ HitResult trace_ray_collision(
 				result.material_index = sphere.material_index;
 				break;
 			}
-			case MESH:
-			{
-				--stack_index;
-				Mesh mesh = get_mesh(shape.data_texel_index);
-				HitInfo hit_info = ray_mesh(
-					ray,
-					mesh,
-					result.info.dist
-#if DEBUG
-					, tri_test_count
-#endif //DEBUG
-				);
-				
-				if (!hit_info.hit || hit_info.dist >= result.info.dist)
-					break;
-				
-				result.info = hit_info;
-				result.material_index = mesh.material_index;
-				break;
-			}
 			default:
 				--stack_index;
 				break;
 		}
-		
-		++loop_count;
 	}
 	
 	return result;

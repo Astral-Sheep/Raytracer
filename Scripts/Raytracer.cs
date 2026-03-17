@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Godot;
 
@@ -241,7 +242,7 @@ public partial class Raytracer : PostProcessLayer
 
 	protected void UpdateBVH(Dictionary<Material, int> pMaterialMap)
 	{
-		BVHResult lResult = BVHBuilder.BuildBVH(shapes.ToArray(), pMaterialMap);
+		BVHResult lResult = BVHBuilder.BuildBVH(shapes.Where(s => s is Node3D { Visible: true }).ToArray(), pMaterialMap);
 
 		shapeBuffer.RawData.Clear();
 		dataBuffer.RawData.Clear();
