@@ -8,7 +8,8 @@ namespace Astral.Raytracer;
 
 public static class BVHBuilder
 {
-	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/raytracing/bvh_global_depth");
+	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_global_depth");
+	public static int SplitTests => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_split_tests");
 
 	public static IBVHVolume GenerateBVH(IRaytracedShape[] pShapes)
 	{
@@ -23,9 +24,11 @@ public static class BVHBuilder
 
 		if (lRoot.childVolumes.Count == 1 && lRoot.childShapes.Count <= 0)
 		{
+			GD.Print(lRoot.childVolumes[0].ToString(0) + "\n");
 			return lRoot.childVolumes[0];
 		}
 
+		GD.Print(lRoot.ToString(0) + "\n");
 		return lRoot;
 	}
 
@@ -79,17 +82,28 @@ public static class BVHBuilder
 		while (lCurrentVolume < lVolumes.Count)
 		{
 			IBVHVolume lVolume = lVolumes[lCurrentVolume];
+			GD.PrintRich(
+				$"[color=#f5b642]{lVolume.GetType().Name}[/color] ({lCurrentVolume}):\n" +
+				$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
+				$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n" +
+				$"start: {lVolumes.Count + lChildOffset}\n"
+			);
 
 			switch (lVolume)
 			{
 				case BVHGlobalVolume lGlobalVolume:
 				{
 					lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset - 1).GetBytes());
+					lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
 
 					for (int i = 0; i < lGlobalVolume.childShapes.Count; i++)
 					{
 						IRaytracedShape lShape = lGlobalVolume.childShapes[i];
+						GD.PrintRich(
+							$"[color=#42c2f5]{lShape.GetType().Name}[/color] ({lVolumes.Count + lChildOffset + i}):\n" +
+							$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
+							$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n"
+						);
 						lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
 
 						switch (lShape)
@@ -169,16 +183,16 @@ public static class BVHBuilder
 
 	public static (bool splittable, vec3 axis) GetSplitAxis(IBVHVolume pVolume)
 	{
-		const int AXIS_TEST = 10;
+		int lSplitTests = SplitTests;
 
-		vec3 lStep = (pVolume.Max - pVolume.Min) / (AXIS_TEST + 1f);
+		vec3 lStep = (pVolume.Max - pVolume.Min) / (lSplitTests + 1f);
 		vec3 lStart = pVolume.Min + lStep;
 		vec3 lSize = abs(pVolume.Max - pVolume.Min);
 
 		vec3 lBestAxis = new vec3(float.NaN);
 		float lBestScore = lSize.x * lSize.y * lSize.z * pVolume.ChildCount;
 
-		for (int i = 0; i < AXIS_TEST; i++)
+		for (int i = 0; i < lSplitTests; i++)
 		{
 			vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
 			float lScore = pVolume.GetSplitScore(lAxis);
@@ -190,7 +204,7 @@ public static class BVHBuilder
 			}
 		}
 
-		for (int i = 0; i < AXIS_TEST; i++)
+		for (int i = 0; i < lSplitTests; i++)
 		{
 			vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
 			float lScore = pVolume.GetSplitScore(lAxis);
@@ -202,7 +216,7 @@ public static class BVHBuilder
 			}
 		}
 
-		for (int i = 0; i < AXIS_TEST; i++)
+		for (int i = 0; i < lSplitTests; i++)
 		{
 			vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
 			float lScore = pVolume.GetSplitScore(lAxis);

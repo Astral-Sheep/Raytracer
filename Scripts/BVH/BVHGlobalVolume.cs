@@ -204,4 +204,21 @@ public class BVHGlobalVolume : IBVHVolume
 			count = childShapes.Count + childVolumes.Count,
 		};
 	}
+
+	public virtual string ToString(int pDepth)
+	{
+		string lString = $"{GetType().Name}: {childShapes.Count} shapes & {childVolumes.Count} volumes";
+
+		for (int i = 0; i < childShapes.Count; i++)
+		{
+			lString += $"\n{new string(' ', pDepth * 5)}---> {childShapes[i].GetType().Name}";
+		}
+
+		for (int i = 0; i < childVolumes.Count; i++)
+		{
+			lString += $"\n{new string(' ', pDepth * 5)}---> {childVolumes[i].ToString(pDepth + 1)}";
+		}
+
+		return lString;
+	}
 }

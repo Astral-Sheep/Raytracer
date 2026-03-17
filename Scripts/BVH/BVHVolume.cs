@@ -8,4 +8,5 @@ public interface IBVHVolume
 
 	int Split(int pMaxDepth, int pVertexIndexOffset);
 	float GetSplitScore(vec3 pAxis);
+	string ToString(int pDepth);
 }

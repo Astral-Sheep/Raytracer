@@ -7,11 +7,11 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedMaterial : Material
 {
-	public const int DATA_SIZE = 4;
+	public const int DATA_SIZE = 1;
 	public const float INV_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * DATA_SIZE);
 
 	[Export] public EMaterialType type = EMaterialType.Opaque;
-	[Export] public Color color = Colors.Gray;
+	[Export(PropertyHint.ColorNoAlpha)] public Color color = Colors.Gray;
 	[Export] public Texture2D texture;
 	[Export(PropertyHint.ColorNoAlpha)] public Color emissive;
 	[Export] public float emissiveIntensity;

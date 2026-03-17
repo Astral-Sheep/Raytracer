@@ -170,4 +170,23 @@ public class BVHMeshVolume : IBVHVolume
 			count = children.Count > 0 ? 0 : count,
 		};
 	}
+
+	public virtual string ToString(int pDepth)
+	{
+		if (children.Count > 0)
+		{
+			string lString = $"{GetType().Name}";
+
+			for (int i = 0; i < children.Count; i++)
+			{
+				lString += $"\n{new string('-', pDepth * 5)}---> {children[i].ToString(pDepth + 1)}";
+			}
+
+			return lString;
+		}
+		else
+		{
+			return $"{GetType().Name}: {ChildCount} triangles";
+		}
+	}
 }

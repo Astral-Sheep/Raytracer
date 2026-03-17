@@ -12,7 +12,7 @@ namespace Astral.Raytracer;
 
 public class BVHMesh : IBVHVolume
 {
-	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/raytracing/bvh_mesh_depth");
+	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_mesh_depth");
 
 	public vec3 Min { get; }
 	public vec3 Max { get; }
@@ -258,6 +258,7 @@ public class BVHMesh : IBVHVolume
 	public ShapeData GetShaderShape(int pTexelIndex)
 	{
 		return new ShapeData {
+			// To fix
 			type = basis.Mesh.GetSurfaceCount() == 1 && children.Count == 0
 				? (int)ERaytracedShapeType.LeafMesh
 				: (int)ERaytracedShapeType.Mesh,
@@ -342,5 +343,24 @@ public class BVHMesh : IBVHVolume
 		}
 
 		return lTriangleBufferData.ToArray();
+	}
+
+	public virtual string ToString(int pDepth)
+	{
+		if (children.Count > 0)
+		{
+			string lString = $"{GetType().Name}";
+
+			for (int i = 0; i < children.Count; i++)
+			{
+				lString += $"\n{new string('-', pDepth * 5)}---> {children[i].ToString(pDepth + 1)}";
+			}
+
+			return lString;
+		}
+		else
+		{
+			return $"{GetType().Name}: {ChildCount} triangles";
+		}
 	}
 }

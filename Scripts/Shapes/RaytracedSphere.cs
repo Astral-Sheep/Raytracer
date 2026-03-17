@@ -19,11 +19,11 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		get
 		{
-			vec3 origin = fromVariant(GlobalPosition);
-			vec3 size = new vec3(Radius);
+			vec3 lOrigin = fromVariant(GlobalPosition);
+			vec3 lExtent = new vec3(Radius) * fromVariant(GlobalTransform.Basis.Scale);
 			return new ShapeBounds {
-				min = origin - size,
-				max = origin + size,
+				min = lOrigin - lExtent,
+				max = lOrigin + lExtent,
 			};
 		}
 	}
@@ -84,8 +84,9 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	{
 		return new SphereData {
 			center = new vec3(GlobalPosition.X, GlobalPosition.Y, GlobalPosition.Z),
-			radius = Radius * GlobalBasis.Scale.X,
-			materialIndex = pMaterialMap.GetValueNoError(Material, 0)
+			radius = Radius,
+			scale = fromVariant(GlobalBasis.Scale),
+			materialIndex = pMaterialMap.GetValueNoError(Material, 0),
 		};
 	}
 

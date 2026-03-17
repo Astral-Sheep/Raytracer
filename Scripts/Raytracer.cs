@@ -72,6 +72,9 @@ public partial class Raytracer : PostProcessLayer
 	[ExportToolButton("Reset frame count")]
 	protected Callable ResetFrameCount => Callable.From(() => frameCount = 0);
 
+	[ExportToolButton("Build BVH")]
+	protected Callable BuildBVH => Callable.From(() => updateRequested = true);
+
 	protected List<RaytracedSun> suns = new List<RaytracedSun>();
 
 	// protected List<RaytracedSphere> spheres = new List<RaytracedSphere>();

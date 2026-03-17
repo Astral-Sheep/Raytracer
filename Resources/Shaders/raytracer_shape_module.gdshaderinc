@@ -18,7 +18,7 @@ const int SPHERE = 6;
 // Shapes
 const int SHAPE_DATA_SIZE = 2;
 const float BV_DATA_SIZE = 0.5;
-const float SPHERE_DATA_SIZE = 1.25;
+const float SPHERE_DATA_SIZE = 2.0;
 const float MESH_DATA_SIZE = 4.75;
 const float SUBMESH_DATA_SIZE = 0.75;
 
@@ -176,7 +176,7 @@ BoundingVolume get_bounding_volume(in int texel_index)
 	// ===== Code optimized for when BV_DATA_SIZE is 0.5 =====
 	//int offset = 2 * int(texel_index % 2 != 0);
 	//texel_index /= 2;
-	vec4 texel = get_buffer_texel(data_buffer, texel_index, shape_buffer_size);
+	vec4 texel = get_buffer_texel(data_buffer, texel_index, data_buffer_size);
 	
 	return BoundingVolume(
 		floatBitsToInt(texel.x), // start_index
@@ -285,6 +285,7 @@ HitResult ray_submesh(
 )
 {
 	HitResult result = HitResult(get_empty_hit(), -1);
+	result.info.dist = max_dist * max_dist;
 	
 	if (submesh.count <= 0)
 	{
@@ -299,6 +300,12 @@ HitResult ray_submesh(
 		while (stack_index >= 0 && loop_count < MAX_LOOPS)
 		{
 			Shape shape = get_shape(bvh_stack[stack_index]);
+			
+			if (!ray_box(ray, shape.bound_min, shape.bound_max, result.info.dist))
+			{
+				--stack_index;
+				continue;
+			}
 			
 			// Only MESH_VOLUME type is handled. No switch is needed
 			BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
@@ -341,7 +348,10 @@ HitResult ray_submesh(
 		{
 			TrianglePrimitive triangle = get_triangle_primitive(get_triangle(i));
 			HitInfo triangle_hit = ray_triangle(ray, triangle);
+			
+#if DEBUG
 			++tri_test_count;
+#endif //DEBUG
 			
 			if (!triangle_hit.hit || triangle_hit.dist >= result.info.dist)
 				continue;
@@ -391,6 +401,12 @@ HitResult ray_mesh(
 		while (stack_index >= 0 && loop_count < MAX_LOOPS)
 		{
 			Shape shape = get_shape(bvh_stack[stack_index]);
+			
+			if (!ray_box(local_ray, shape.bound_min, shape.bound_max, result.info.dist))
+			{
+				--stack_index;
+				continue;
+			}
 			
 			// Only MESH_VOLUME type is handled. No switch is needed
 			BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
@@ -481,7 +497,10 @@ HitResult ray_leaf_mesh(
 	{
 		TrianglePrimitive triangle = get_triangle_primitive(get_triangle(i));
 		HitInfo triangle_hit = ray_triangle(local_ray, triangle);
+		
+#if DEBUG
 		++tri_test_count;
+#endif //DEBUG
 		
 		if (!triangle_hit.hit || triangle_hit.dist >= result.info.dist)
 			continue;
@@ -532,11 +551,15 @@ HitResult trace_ray_collision(
 		++loop_count;
 		Shape shape = get_shape(bvh_stack[stack_index]);
 		
-		if (shape.type < 1 || shape.data_texel_index < 0)
+		if (
+			shape.type < 1
+			|| shape.data_texel_index < 0
+			|| !ray_box(ray, shape.bound_min, shape.bound_max, result.info.dist)
+		)
+		{
+			--stack_index;
 			continue;
-		
-		if (!ray_box(ray, shape.bound_min, shape.bound_max, result.info.dist))
-			continue;
+		}
 		
 		switch (shape.type)
 		{
