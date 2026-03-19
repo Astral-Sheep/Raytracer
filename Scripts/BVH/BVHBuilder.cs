@@ -72,56 +72,25 @@ public static class BVHBuilder
 		List<byte> lTriangles = new List<byte>();
 
 		// Hierarchy
-		List<IBVHVolume> lVolumes = new List<IBVHVolume>();
+		List<object> lObjectsToAdd = new List<object>();
+		// List<IBVHVolume> lVolumes = new List<IBVHVolume>();
 		Dictionary<Mesh, (int start, int count)> lBuiltMeshes = new Dictionary<Mesh, (int start, int count)>();
-		lVolumes.Add(pRoot);
+		lObjectsToAdd.Add(pRoot);
 
-		int lCurrentVolume = 0;
-		int lChildOffset = 0;
+		int lCurrentObject = 0;
 
-		while (lCurrentVolume < lVolumes.Count)
+		while (lCurrentObject < lObjectsToAdd.Count)
 		{
-			IBVHVolume lVolume = lVolumes[lCurrentVolume];
-			GD.PrintRich(
-				$"[color=#f5b642]{lVolume.GetType().Name}[/color] ({lCurrentVolume}):\n" +
-				$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
-				$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n" +
-				$"start: {lVolumes.Count + lChildOffset}\n"
-			);
+			object lObject = lObjectsToAdd[lCurrentObject];
 
-			switch (lVolume)
+			switch (lObject)
 			{
 				case BVHGlobalVolume lGlobalVolume:
 				{
 					lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
-
-					for (int i = 0; i < lGlobalVolume.childShapes.Count; i++)
-					{
-						IRaytracedShape lShape = lGlobalVolume.childShapes[i];
-						GD.PrintRich(
-							$"[color=#42c2f5]{lShape.GetType().Name}[/color] ({lVolumes.Count + lChildOffset + i}):\n" +
-							$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
-							$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n"
-						);
-						lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-
-						switch (lShape)
-						{
-							case RaytracedSphere lSphere:
-								lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
-								break;
-							case RaytracedMesh:
-								GD.PushError("Raytraced mesh handled as shape instead of volume");
-								break;
-							default:
-								GD.PushWarning($"Unhandled raytraced shape: {lShape.GetType().Name}");
-								break;
-						}
-					}
-
-					lVolumes.AddRange(lGlobalVolume.childVolumes);
-					lChildOffset += lGlobalVolume.childShapes.Count;
+					lData.AddRange(lGlobalVolume.GetShaderData(lObjectsToAdd.Count).GetBytes());
+					lObjectsToAdd.AddRange(lGlobalVolume.childShapes);
+					lObjectsToAdd.AddRange(lGlobalVolume.childVolumes);
 					break;
 				}
 				case BVHMesh lMesh:
@@ -136,36 +105,145 @@ public static class BVHBuilder
 					lData.AddRange(lMesh.GetShaderData(
 						lBuiltMeshes,
 						pMaterialMap,
-						lVolumes.Count + lChildOffset,
+						lObjectsToAdd.Count,
 						(int)(lTriangles.Count / TriangleData.GetTexelSize())
 					).GetBytes());
-
-					lVolumes.AddRange(lMesh.children);
+					lObjectsToAdd.AddRange(lMesh.children);
 					break;
 				}
 				case BVHSubmesh lSubmesh:
 				{
 					lShapes.AddRange(lSubmesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lSubmesh.GetShaderData(pMaterialMap, lVolumes.Count + lChildOffset).GetBytes());
-					lVolumes.AddRange(lSubmesh.children);
+					lData.AddRange(lSubmesh.GetShaderData(pMaterialMap, lObjectsToAdd.Count).GetBytes());
+					lObjectsToAdd.AddRange(lSubmesh.children);
 					break;
 				}
 				case BVHMeshVolume lMeshVolume:
 				{
 					lShapes.AddRange(lMeshVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lMeshVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
-					lVolumes.AddRange(lMeshVolume.children);
+					lData.AddRange(lMeshVolume.GetShaderData(lObjectsToAdd.Count).GetBytes());
+					lObjectsToAdd.AddRange(lMeshVolume.children);
+					break;
+				}
+				case IRaytracedShape lShape:
+				{
+					lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+
+					switch (lShape)
+					{
+						case RaytracedSphere lSphere:
+							lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
+							break;
+						case RaytracedMesh:
+							GD.PushError("Raytraced mesh handled as shape instead of volume");
+							break;
+						default:
+							GD.PushError($"Unhandled raytraced shape found in hierarchy: {lShape.GetType().Name}");
+							break;
+					}
+
 					break;
 				}
 				default:
-				{
-					GD.PushError($"Unknown BVH volume type: {lVolume.GetType().Name}");
+					GD.PushError($"Unhandled object found in hierarchy: {lObject?.GetType().Name}");
 					break;
-				}
 			}
 
-			++lCurrentVolume;
+			++lCurrentObject;
 		}
+
+		// lVolumes.Add(pRoot);
+
+		// int lCurrentVolume = 0;
+		// int lChildOffset = 0;
+
+		// while (lCurrentVolume < lVolumes.Count)
+		// {
+		// 	IBVHVolume lVolume = lVolumes[lCurrentVolume];
+		// 	GD.PrintRich(
+		// 		$"[color=#f5b642]{lVolume.GetType().Name}[/color] ({lCurrentVolume}):\n" +
+		// 		$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
+		// 		$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n" +
+		// 		$"start: {lVolumes.Count + lChildOffset}\n"
+		// 	);
+		//
+		// 	switch (lVolume)
+		// 	{
+		// 		case BVHGlobalVolume lGlobalVolume:
+		// 		{
+		// 			lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+		// 			lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
+		//
+		// 			for (int i = 0; i < lGlobalVolume.childShapes.Count; i++)
+		// 			{
+		// 				IRaytracedShape lShape = lGlobalVolume.childShapes[i];
+		// 				GD.PrintRich(
+		// 					$"[color=#42c2f5]{lShape.GetType().Name}[/color] ({lVolumes.Count + lChildOffset + i}):\n" +
+		// 					$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
+		// 					$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n"
+		// 				);
+		// 				lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+		//
+		// 				switch (lShape)
+		// 				{
+		// 					case RaytracedSphere lSphere:
+		// 						lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
+		// 						break;
+		// 					case RaytracedMesh:
+		// 						GD.PushError("Raytraced mesh handled as shape instead of volume");
+		// 						break;
+		// 					default:
+		// 						GD.PushWarning($"Unhandled raytraced shape: {lShape.GetType().Name}");
+		// 						break;
+		// 				}
+		// 			}
+		//
+		// 			lVolumes.AddRange(lGlobalVolume.childVolumes);
+		// 			lChildOffset += lGlobalVolume.childShapes.Count;
+		// 			break;
+		// 		}
+		// 		case BVHMesh lMesh:
+		// 		{
+		// 			if (!lBuiltMeshes.ContainsKey(lMesh.Mesh))
+		// 			{
+		// 				lVertices.AddRange(lMesh.GetVertexBufferData());
+		// 				lTriangles.AddRange(lMesh.GetTriangleBufferData());
+		// 			}
+		//
+		// 			lShapes.AddRange(lMesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+		// 			lData.AddRange(lMesh.GetShaderData(
+		// 				lBuiltMeshes,
+		// 				pMaterialMap,
+		// 				lVolumes.Count + lChildOffset,
+		// 				(int)(lTriangles.Count / TriangleData.GetTexelSize())
+		// 			).GetBytes());
+		//
+		// 			lVolumes.AddRange(lMesh.children);
+		// 			break;
+		// 		}
+		// 		case BVHSubmesh lSubmesh:
+		// 		{
+		// 			lShapes.AddRange(lSubmesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+		// 			lData.AddRange(lSubmesh.GetShaderData(pMaterialMap, lVolumes.Count + lChildOffset).GetBytes());
+		// 			lVolumes.AddRange(lSubmesh.children);
+		// 			break;
+		// 		}
+		// 		case BVHMeshVolume lMeshVolume:
+		// 		{
+		// 			lShapes.AddRange(lMeshVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+		// 			lData.AddRange(lMeshVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
+		// 			lVolumes.AddRange(lMeshVolume.children);
+		// 			break;
+		// 		}
+		// 		default:
+		// 		{
+		// 			GD.PushError($"Unknown BVH volume type: {lVolume.GetType().Name}");
+		// 			break;
+		// 		}
+		// 	}
+		//
+		// 	++lCurrentVolume;
+		// }
 
 		return new BVHResult {
 			shapeBuffer = lShapes.ToArray(),

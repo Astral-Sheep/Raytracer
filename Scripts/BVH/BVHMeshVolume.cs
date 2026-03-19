@@ -10,6 +10,10 @@ public class BVHMeshVolume : IBVHVolume
 {
 	public vec3 Min { get; private set; }
 	public vec3 Max { get; private set; }
+
+	public vec3 GlobalMin => (localToWorld * new vec4(Min, 1f)).xyz;
+	public vec3 GlobalMax => (localToWorld * new vec4(Max, 1f)).xyz;
+
 	public int ChildCount { get; private set; }
 
 	public readonly List<BVHMeshVolume> children = new List<BVHMeshVolume>();
@@ -21,25 +25,31 @@ public class BVHMeshVolume : IBVHVolume
 	public int startIndex;
 	public int count;
 	public int vertexOffset;
+	public int triangleOffset;
+	public mat4 localToWorld;
 
-	public BVHMeshVolume(VertexData[] pVertices, TriangleData[] pTriangles, int pStart, int pCount, int pVertexOffset)
+	public BVHMeshVolume(VertexData[] pVertices, TriangleData[] pTriangles, mat4 pLocalToWorld, int pStart, int pCount, int pVertexOffset, int pTriangleOffset)
 	{
+		vertices = pVertices;
+		triangles = pTriangles;
+		localToWorld = pLocalToWorld;
+
 		startIndex = pStart;
 		count = pCount;
 		vertexOffset = pVertexOffset;
-		vertices = pVertices;
-		triangles = pTriangles;
+		triangleOffset = pTriangleOffset;
+
 		ChildCount = count;
 
 		for (int i = startIndex; i < startIndex + count; i++)
 		{
-			TriangleData lTriangle = triangles[i];
+			TriangleData lTriangle = triangles[i - triangleOffset];
 			vec3 v0 = vertices[lTriangle.v0 - vertexOffset].position;
 			vec3 v1 = vertices[lTriangle.v1 - vertexOffset].position;
 			vec3 v2 = vertices[lTriangle.v2 - vertexOffset].position;
 
-			Min = min(min(v0, v1), v2);
-			Max = max(max(v0, v1), v2);
+			Min = min(min(min(v0, v1), v2), Min);
+			Max = max(max(max(v0, v1), v2), Max);
 		}
 	}
 
@@ -49,7 +59,7 @@ public class BVHMeshVolume : IBVHVolume
 		++count;
 		++ChildCount;
 
-		TriangleData lTriangle = triangles[startIndex + count - 1];
+		TriangleData lTriangle = triangles[startIndex + count - 1 - triangleOffset];
 		vec3 v0 = vertices[lTriangle.v0 - vertexOffset].position;
 		vec3 v1 = vertices[lTriangle.v1 - vertexOffset].position;
 		vec3 v2 = vertices[lTriangle.v2 - vertexOffset].position;
@@ -60,7 +70,7 @@ public class BVHMeshVolume : IBVHVolume
 
 	public virtual int Split(int pMaxDepth = 1, int pVertexIndexOffset = 0)
 	{
-		if (triangles is not { Length: > 0 })
+		if (pMaxDepth <= 0 || triangles is not { Length: > 0 })
 		{
 			return vertexOffset;
 		}
@@ -72,12 +82,12 @@ public class BVHMeshVolume : IBVHVolume
 			return pVertexIndexOffset;
 		}
 
-		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
-		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, startIndex, 0, vertexOffset);
+		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, localToWorld, startIndex, 0, vertexOffset, triangleOffset);
+		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, localToWorld, startIndex, 0, vertexOffset, triangleOffset);
 
-		for (int i = startIndex; i < count; i++)
+		for (int i = startIndex; i < startIndex + count; i++)
 		{
-			TriangleData lTriangle = triangles[i];
+			TriangleData lTriangle = triangles[i - triangleOffset];
 			vec3 lCenter = (
 				vertices[lTriangle.v0 - vertexOffset].position +
 				vertices[lTriangle.v1 - vertexOffset].position +
@@ -89,9 +99,9 @@ public class BVHMeshVolume : IBVHVolume
 				if (lChild1.count > 0)
 				{
 					// Swap triangles for contiguity
-					TriangleData lSwappedTriangle = triangles[lChild1.startIndex];
-					triangles[lChild1.startIndex] = lTriangle;
-					triangles[i] = lSwappedTriangle;
+					TriangleData lSwappedTriangle = triangles[lChild1.startIndex - triangleOffset];
+					triangles[lChild1.startIndex - triangleOffset] = lTriangle;
+					triangles[i - triangleOffset] = lSwappedTriangle;
 				}
 
 				++lChild1.startIndex;
@@ -124,7 +134,7 @@ public class BVHMeshVolume : IBVHVolume
 
 		for (int i = 0; i < triangles.Length; i++)
 		{
-			TriangleData lTriangle = triangles[i];
+			TriangleData lTriangle = triangles[i - triangleOffset];
 			vec3 lV0 = vertices[lTriangle.v0 - vertexOffset].position;
 			vec3 lV1 = vertices[lTriangle.v1 - vertexOffset].position;
 			vec3 lV2 = vertices[lTriangle.v2 - vertexOffset].position;
@@ -157,8 +167,8 @@ public class BVHMeshVolume : IBVHVolume
 		return new ShapeData {
 			type = (int)ERaytracedShapeType.BoundingVolume,
 			dataTexelIndex = pTexelIndex,
-			boundMin = Min,
-			boundMax = Max,
+			boundMin = GlobalMin,
+			boundMax = GlobalMax,
 		};
 	}
 

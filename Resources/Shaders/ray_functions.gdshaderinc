@@ -1,6 +1,6 @@
 #include "shader_utilities.gdshaderinc"
 
-const float MAX_DISTANCE = 1e24;
+const float MAX_DISTANCE = 1e15;
 
 struct Ray
 {

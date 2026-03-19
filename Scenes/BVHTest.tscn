@@ -9,16 +9,16 @@
 [ext_resource type="PackedScene" uid="uid://xjqi6prrmgp5" path="res://Assets/Models/raytraced_dragon.tscn" id="7_wxono"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_4cyfv"]
-size = Vector2(0.21947241, 0.1414682)
+size = Vector2(0.21177462, 0.1414682)
 orientation = 2
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_pe60f"]
 
 [sub_resource type="Image" id="Image_wxono"]
 data = {
-"data": PackedByteArray(0, 0, 0, 0, 0, 0, 128, 62, 0, 0, 128, 62, 0, 0, 128, 62, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 128, 191, 0, 0, 0, 0),
+"data": PackedByteArray(0, 0, 128, 255, 190, 190, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 128, 255, 255, 255, 0, 0, 0, 208, 99, 0, 255, 255, 255, 128),
 "format": "RGBAFloat",
-"height": 2,
+"height": 1,
 "mipmaps": false,
 "width": 2
 }
@@ -47,7 +47,7 @@ data = {
 "width": 2
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_f7x6a"]
+[sub_resource type="ImageTexture" id="ImageTexture_8f50n"]
 image = SubResource("Image_tfrap")
 
 [sub_resource type="Image" id="Image_ujy0w"]
@@ -77,10 +77,11 @@ image = SubResource("Image_8f50n")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_2mo40"]
 render_priority = 1
 shader = ExtResource("1_4cyfv")
-shader_parameter/display_type = 0
+shader_parameter/display_type = 5
 shader_parameter/debug_focus_plane = false
 shader_parameter/max_depth = 10.0
-shader_parameter/max_shape_tests = 16000
+shader_parameter/max_volume_tests = 64
+shader_parameter/max_shape_tests = 1000
 shader_parameter/shape_buffer = SubResource("ImageTexture_bkqha")
 shader_parameter/shape_buffer_size = Vector2i(1, 1)
 shader_parameter/data_buffer_size = Vector2i(0, 0)
@@ -89,19 +90,19 @@ shader_parameter/vertex_buffer_size = Vector2i(242, 216)
 shader_parameter/triangle_buffer = SubResource("ImageTexture_ismh8")
 shader_parameter/triangle_buffer_size = Vector2i(99, 66)
 shader_parameter/material_buffer = SubResource("ImageTexture_iqv8y")
-shader_parameter/material_buffer_size = Vector2i(2, 2)
+shader_parameter/material_buffer_size = Vector2i(2, 1)
 shader_parameter/enable_environment = true
 shader_parameter/horizon_color = Color(0, 0, 0, 1)
 shader_parameter/zenith_color = Color(0, 0, 0, 1)
 shader_parameter/ground_color = Color(0, 0, 0, 1)
-shader_parameter/sun_buffer = SubResource("ImageTexture_f7x6a")
-shader_parameter/sun_buffer_size = Vector2i(0, 0)
+shader_parameter/sun_buffer = SubResource("ImageTexture_8f50n")
+shader_parameter/sun_buffer_size = Vector2i(2, 1)
 shader_parameter/ray_count = 1
 shader_parameter/bounce_count = 1
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 0.0
 shader_parameter/focus_plane_distance_offset = 0.0
-shader_parameter/plane_size = Vector2(0.21645258, 0.14006752)
+shader_parameter/plane_size = Vector2(0.3217135, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 shader_parameter/enable_accumulation = false
@@ -133,7 +134,7 @@ transform = Transform3D(0.9851157, -0.0634114, 0.15976875, 0, 0.9294686, 0.36890
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=654779828]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.72236025, -0.23251384, 0.6512519, 0.25509986, 0.96495295, 0.061557963, -0.6427391, 0.12166777, 0.7563595, 2.330205, 0.08994484, -0.97610116)
+transform = Transform3D(0.70090705, -0.15920754, 0.6952546, 0.26311934, 0.96373165, -0.044571564, -0.6629447, 0.21417585, 0.71737695, 1.9295723, 0.5730318, -0.9534402)
 visible = false
 cast_shadow = 0
 gi_mode = 0

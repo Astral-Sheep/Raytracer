@@ -9,8 +9,8 @@ public class BVHSubmesh : BVHMeshVolume
 {
 	public Material material;
 
-	public BVHSubmesh(VertexData[] pVertices, TriangleData[] pTriangles, int pStart, int pCount, int pVertexOffset)
-		: base(pVertices, pTriangles, pStart, pCount, pVertexOffset) {}
+	public BVHSubmesh(VertexData[] pVertices, TriangleData[] pTriangles, mat4 pLocalToWorld, int pStart, int pCount, int pVertexOffset, int pTriangleOffset)
+		: base(pVertices, pTriangles, pLocalToWorld, pStart, pCount, pVertexOffset, pTriangleOffset) {}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public override ShapeData GetShaderShape(int pTexelIndex)
@@ -18,8 +18,8 @@ public class BVHSubmesh : BVHMeshVolume
 		return new ShapeData {
 			type = (int)ERaytracedShapeType.Submesh,
 			dataTexelIndex = pTexelIndex,
-			boundMin = Min,
-			boundMax = Max,
+			boundMin = GlobalMin,
+			boundMax = GlobalMax,
 		};
 	}
 

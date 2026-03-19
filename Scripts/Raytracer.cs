@@ -76,10 +76,6 @@ public partial class Raytracer : PostProcessLayer
 	protected Callable BuildBVH => Callable.From(() => updateRequested = true);
 
 	protected List<RaytracedSun> suns = new List<RaytracedSun>();
-
-	// protected List<RaytracedSphere> spheres = new List<RaytracedSphere>();
-	// protected List<RaytracedBox> boxes = new List<RaytracedBox>();
-	// protected List<RaytracedMesh> meshes = new List<RaytracedMesh>();
 	protected List<IRaytracedShape> shapes = new List<IRaytracedShape>();
 
 	private DataBuffer shapeBuffer = DataBuffer.New("shape_buffer");

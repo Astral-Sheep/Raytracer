@@ -64,8 +64,8 @@ public class BVHMesh : IBVHVolume
 
 			Vertices[i] = lVertexArray.AsParallel().Select((v, j) => new VertexData {
 				position = fromVariant(v.As<Vector3>()),
-				normal = fromVariant(lNormalArray[j].As<Vector3>()),
-				uv = fromVariant(lUVArray[j].As<Vector2>()),
+				normal = j < lNormalArray.Count ? fromVariant(lNormalArray[j].As<Vector3>()) : new vec3(0f),
+				uv = j < lUVArray.Count ? fromVariant(lUVArray[j].As<Vector2>()) : new vec2(0f),
 			}).ToArray();
 		});
 	}
@@ -135,24 +135,35 @@ public class BVHMesh : IBVHVolume
 	{
 		int lTriangleCount = 0;
 
-		List<Task> lSplits = new List<Task>();
-
 		for (int i = 0; i < basis.Mesh.GetSurfaceCount(); i++)
 		{
 			if (Triangles[i] is not { Length: > 0 })
 				continue;
 
-			BVHSubmesh lSubmesh = new BVHSubmesh(Vertices[i], Triangles[i], lTriangleCount, lTriangleCount + Triangles[i].Length, VertexOffset);
+			BVHSubmesh lSubmesh = new BVHSubmesh(Vertices[i], Triangles[i], basis.GlobalTransform, lTriangleCount, Triangles[i].Length, VertexOffset, lTriangleCount);
 			children.Add(lSubmesh);
 			lTriangleCount += Triangles[i].Length;
-			lSplits.Add(Task.Run(() => lSubmesh.Split(pMaxDepth - 1, VertexOffset)));
 		}
-
-		Task.WaitAll(lSplits.ToArray());
 
 		if (children.Count == 1)
 		{
 			SplitInSubvolumes(pMaxDepth, Triangles.IndexOf((children[0] as BVHSubmesh).triangles));
+		}
+		else
+		{
+			// for (int i = 0; i < children.Count; i++)
+			// {
+			// 	children[i].Split(pMaxDepth - 1, VertexOffset);
+			// }
+
+			Task.WaitAll(
+				children
+					.AsParallel()
+					.Select(c => Task.Run(() => {
+						c.Split(pMaxDepth - 1, VertexOffset);
+					}))
+					.ToArray()
+			);
 		}
 	}
 
@@ -169,10 +180,10 @@ public class BVHMesh : IBVHVolume
 		if (!lSplittable)
 			return;
 
-		BVHMeshVolume lChild0 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], 0, 0, VertexOffset);
-		BVHMeshVolume lChild1 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], 0, 0, VertexOffset);
+		BVHMeshVolume lChild0 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], basis.GlobalTransform, 0, 0, VertexOffset, 0);
+		BVHMeshVolume lChild1 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], basis.GlobalTransform, 0, 0, VertexOffset, 0);
 
-		for (int i = 0; i < Triangles.Length; i++)
+		for (int i = 0; i < lTriangles.Length; i++)
 		{
 			TriangleData lTriangle = lTriangles[i];
 			vec3 lCenter = (
