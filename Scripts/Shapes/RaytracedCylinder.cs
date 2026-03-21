@@ -1,16 +1,44 @@
-using System.IO;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
 
-[GlobalClass, Tool]
-public partial class RaytracedBox : CsgBox3D, IRaytracedShape
+[Tool, GlobalClass]
+public partial class RaytracedCylinder : CsgCylinder3D, IRaytracedShape
 {
-	public static uint ByteSize => 80;
+	public const int CYLINDER_DATA_SIZE = 5;
+	public const float INV_CYLINDER_BYTE_SIZE = 1f / (CYLINDER_DATA_SIZE * Raytracer.TEXEL_SIZE);
 
-	public ERaytracedShapeType Type => ERaytracedShapeType.Box;
-	public ShapeBounds Bounds { get; private set; }
+	public ERaytracedShapeType Type => ERaytracedShapeType.Cylinder;
+
+	public ShapeBounds Bounds
+	{
+		get
+		{
+			mat4 lLocalToWorld = GlobalTransform;
+			vec3 lMin = new vec3(Mathf.Inf);
+			vec3 lMax = new vec3(-Mathf.Inf);
+
+			for (int i = 0; i < 8; i++)
+			{
+				vec3 lCorner = (lLocalToWorld * new vec4(
+					Radius * (i % 2 == 0 ? 1 : -1),
+					Height * .5f * (i % 4 < 2 ? 1 : -1),
+					Radius * (i < 4 ? 1 : -1),
+					0f
+				)).xyz;
+				lMin = min(lCorner, lMin);
+				lMax = max(lCorner, lMax);
+			}
+
+			return new ShapeBounds {
+				min = lMin,
+				max = lMax,
+			};
+		}
+	}
 
 	public Material[] Materials
 	{
@@ -56,11 +84,23 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ShapeData GetShapeData(int pTexelIndex)
 	{
+		ShapeBounds lBounds = Bounds;
 		return new ShapeData {
-			type = (int)ERaytracedShapeType.Box,
+			type = (int)ERaytracedShapeType.Cylinder,
 			dataTexelIndex = pTexelIndex,
-			boundMin = Bounds.min,
-			boundMax = Bounds.max,
+			boundMin = lBounds.min,
+			boundMax = lBounds.max,
+		};
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public CylinderData GetShaderData(Dictionary<Material, int> pMaterialMap)
+	{
+		return new CylinderData {
+			radius = Radius,
+			height = Height,
+			transform = GlobalTransform,
+			materialIndex = pMaterialMap.GetValueNoError(Materials[0] ?? raytracer?.DefaultObjectMaterial, -1),
 		};
 	}
 

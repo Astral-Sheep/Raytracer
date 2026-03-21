@@ -12,6 +12,9 @@ const int LEAF_MESH = 3;
 const int MESH_VOLUME = 4;
 const int SUBMESH = 5;
 const int SPHERE = 6;
+const int BOX = 7;
+const int CYLINDER = 8;
+const int TORUS = 9;
 
 // ===== DATA SIZES =====
 
@@ -26,13 +29,15 @@ const float SUBMESH_DATA_SIZE = 0.75;
 const int VERTEX_DATA_SIZE = 2;
 const float TRIANGLE_DATA_SIZE = 0.75;
 
-const int MATERIAL_DATA_SIZE = 1;
+const int MATERIAL_DATA_SIZE = 4;
 
 // ===== MATERIAL TYPES =====
 const int MAT_OPAQUE = 0;
 
+#if DEBUG
 group_uniforms Debug;
 uniform uint max_bvh_depth = 0;
+#endif //DEBUG
 
 // ===== BUFFERS =====
 group_uniforms Shapes;
@@ -52,7 +57,7 @@ uniform ivec2 triangle_buffer_size;
 
 group_uniforms Shapes.Materials;
 
-uniform isampler2D material_buffer;
+uniform sampler2D material_buffer;
 uniform ivec2 material_buffer_size;
 uniform sampler2DArray texture_buffer;
 
@@ -76,6 +81,20 @@ struct Sphere
 {
 	SpherePrimitive primitive;
 	vec3 scale;
+	int material_index;
+};
+
+struct Cylinder
+{
+	CylinderPrimitive primitive;
+	mat4 transform;
+	int material_index;
+};
+
+struct Torus
+{
+	TorusPrimitive primitive;
+	mat4 transform;
 	int material_index;
 };
 
@@ -152,18 +171,54 @@ Shape get_shape(in int index)
 Material get_material(in int index)
 {
 	index *= MATERIAL_DATA_SIZE;
-	ivec4 raw_bytes = get_buffer_texel(material_buffer, index, material_buffer_size);
+	//ivec4 raw_bytes = floatBitsToInt(get_buffer_texel(material_buffer, index, material_buffer_size));
+	vec4 raw_data0 = get_buffer_texel(material_buffer, index, material_buffer_size);
+	vec4 raw_data1 = get_buffer_texel(material_buffer, index + 1, material_buffer_size);
+	vec4 raw_data2 = get_buffer_texel(material_buffer, index + 2, material_buffer_size);
+	vec4 raw_data3 = get_buffer_texel(material_buffer, index + 3, material_buffer_size);
 	
-	return Material(
-		raw_bytes.x & 0xFF, // type
-		(raw_bytes.x & 0xFFFF00) >> 8 - (MIN_SHORT + 1), // texture_index
-		vec3(float((raw_bytes.x & 0xFF000000) >> 24) * INV_255, float(raw_bytes.y & 0xFF) * INV_255, float((raw_bytes.y & 0xFF00) >> 8) * INV_255), // color
-		vec3(float((raw_bytes.y & 0xFF0000) >> 16) * INV_255, float((raw_bytes.y & 0xFF000000) >> 24) * INV_255, float(raw_bytes.z & 0xFF) * INV_255), // emissive
-		halfBitsToFloat((raw_bytes.z & 0xFFFF00) >> 8), // emissive_intensity
-		float((raw_bytes.z & 0xFF000000) >> 24) * INV_255, // smoothness
-		vec3(float(raw_bytes.w & 0xFF) * INV_255, float((raw_bytes.w & 0xFF00) >> 8) * INV_255, float((raw_bytes.w & 0xFF0000) >> 16) * INV_255), // specular_color
-		float((raw_bytes.w & 0xFF000000) >> 24) * INV_255 // specular_probability
-	);
+	Material mat;
+	mat.type = floatBitsToInt(raw_data0.x);
+	mat.texture_index = floatBitsToInt(raw_data0.y);
+	
+	mat.color.r = raw_data0.z;
+	mat.color.g = raw_data0.w;
+	mat.color.b = raw_data1.x;
+	
+	mat.emissive.r = raw_data1.y;
+	mat.emissive.g = raw_data1.z;
+	mat.emissive.b = raw_data1.w;
+	mat.emissive_intensity = raw_data2.x;
+	
+	mat.smoothness = raw_data2.y;
+	mat.specular_color.r = raw_data2.z;
+	mat.specular_color.g = raw_data2.w;
+	mat.specular_color.b = raw_data3.x;
+	mat.specular_probability = raw_data3.y;
+	
+	//mat.type = raw_bytes.x & 0xFF;
+	//mat.texture_index = ((raw_bytes.x & 0xFFFF00) >> 0x08) - (MIN_SHORT - 1);
+	//
+	//mat.color.r = float((raw_bytes.x & 0xFF000000) >> 0x18) * INV_255;
+	//mat.color.g = float((raw_bytes.y & 0xFF)) * INV_255;
+	//mat.color.b = float((raw_bytes.y & 0xFF00) >> 0x08) * INV_255;
+	//
+	//mat.emissive.r = float((raw_bytes.y & 0xFF0000) >> 0x10) * INV_255;
+	//mat.emissive.g = float((raw_bytes.y & 0xFF000000) >> 0x18) * INV_255;
+	//mat.emissive.b = float((raw_bytes.z & 0xFF)) * INV_255;
+	//mat.emissive_intensity = halfBitsToFloat((raw_bytes.z & 0xFFFF00) >> 0x08);
+	//
+	//mat.smoothness = float((raw_bytes.z & 0xFF000000) >> 0x18) * INV_255;
+	//mat.specular_color.r = float((raw_bytes.w & 0xFF)) * INV_255;
+	//mat.specular_color.g = float((raw_bytes.w & 0xFF00) >> 0x08) * INV_255;
+	//mat.specular_color.b = float((raw_bytes.w & 0xFF0000) >> 0x10) * INV_255;
+	//mat.specular_probability = float((raw_bytes.w & 0xFF000000) >> 0x18) * INV_255;
+	
+	//mat.color.r = float((raw_bytes.x) >> 0x18) * INV_255;
+	//mat.color.g = float((raw_bytes.x & 0xFF00) >> 0x08) * INV_255;
+	//mat.color.b = float((raw_bytes.x & 0xFF0000) >> 0x10) * INV_255;
+	
+	return mat;
 }
 
 Material get_empty_material()
@@ -205,6 +260,42 @@ Sphere get_sphere(in int texel_index)
 		),
 		raw_data1.xyz, // scale
 		floatBitsToInt(raw_data1.w) // material_index
+	);
+}
+
+Cylinder get_cylinder(in int texel_index)
+{
+	vec4 raw_data0 = get_buffer_texel(data_buffer, texel_index, data_buffer_size);
+	vec4 raw_data1 = get_buffer_texel(data_buffer, texel_index + 1, data_buffer_size);
+	vec4 raw_data2 = get_buffer_texel(data_buffer, texel_index + 2, data_buffer_size);
+	vec4 raw_data3 = get_buffer_texel(data_buffer, texel_index + 3, data_buffer_size);
+	vec4 raw_data4 = get_buffer_texel(data_buffer, texel_index + 4, data_buffer_size);
+	
+	return Cylinder(
+		CylinderPrimitive(
+			raw_data4.x,
+			raw_data4.y
+		),
+		mat4(raw_data0, raw_data1, raw_data2, raw_data3),
+		floatBitsToInt(raw_data4.z)
+	);
+}
+
+Torus get_torus(in int texel_index)
+{
+	vec4 raw_data0 = get_buffer_texel(data_buffer, texel_index, data_buffer_size);
+	vec4 raw_data1 = get_buffer_texel(data_buffer, texel_index + 1, data_buffer_size);
+	vec4 raw_data2 = get_buffer_texel(data_buffer, texel_index + 2, data_buffer_size);
+	vec4 raw_data3 = get_buffer_texel(data_buffer, texel_index + 3, data_buffer_size);
+	vec4 raw_data4 = get_buffer_texel(data_buffer, texel_index + 4, data_buffer_size);
+	
+	return Torus(
+		TorusPrimitive(
+			raw_data4.x,
+			raw_data4.y
+		),
+		mat4(raw_data0, raw_data1, raw_data2, raw_data3),
+		floatBitsToInt(raw_data4.z)
 	);
 }
 
@@ -432,12 +523,7 @@ bool ray_submesh(in Ray local_ray, in Ray global_ray, in Submesh submesh, in mat
 bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 {
 	bool hit = false;
-	
-	mat4 world_to_local = inverse(mesh.transform);
-	Ray local_ray;
-	local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
-	local_ray.dir = normalize((world_to_local * vec4(ray.dir, 0.0)).xyz);
-	local_ray.invdir = 1.0 / local_ray.dir;
+	Ray local_ray = transform_ray(ray, inverse(mesh.transform));
 	
 	// -2 or less means that the mesh has more than one surface
 	if (mesh.material_index > -2)
@@ -537,11 +623,7 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 bool ray_leaf_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 {
 	bool hit = false;
-	mat4 world_to_local = inverse(mesh.transform);
-	Ray local_ray;
-	local_ray.origin = (world_to_local * vec4(ray.origin, 1.0)).xyz;
-	local_ray.dir = normalize((world_to_local * vec4(ray.dir, 0.0)).xyz);
-	local_ray.invdir = 1.0 / local_ray.dir;
+	Ray local_ray = transform_ray(ray, inverse(mesh.transform));
 	
 	if (ray_local_triangles(local_ray, mesh.start_index, mesh.count, mesh.transform, result))
 	{
@@ -556,8 +638,6 @@ bool ray_leaf_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 
 bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 {
-	bool hit = false;
-	
 	Ray scaled_ray;
 	scaled_ray.origin = ray.origin / sphere.scale;
 	scaled_ray.dir = normalize(ray.dir / sphere.scale);
@@ -584,6 +664,56 @@ bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 	return true;
 }
 
+bool ray_cylinder_shape(in Ray ray, in Cylinder cylinder, inout HitResult result)
+{
+	Ray local_ray = transform_ray(ray, inverse(cylinder.transform));
+	HitInfo cylinder_hit = ray_cylinder(local_ray, cylinder.primitive);
+	
+#if DEBUG
+	++result.shape_test_count;
+#endif //DEBUG
+	
+	if (!cylinder_hit.hit)
+		return false;
+	
+	cylinder_hit.dist = length_squared((cylinder.transform * vec4(cylinder_hit.point - local_ray.origin, 0.0)).xyz);
+	
+	if (cylinder_hit.dist >= result.info.dist * result.info.dist)
+		return false;
+	
+	cylinder_hit.dist = sqrt(cylinder_hit.dist);
+	cylinder_hit.point = (cylinder.transform * vec4(cylinder_hit.point, 1.0)).xyz;
+	cylinder_hit.normal = (cylinder.transform * vec4(cylinder_hit.normal, 0.0)).xyz;
+	result.info = cylinder_hit;
+	result.material_index = cylinder.material_index;
+	return true;
+}
+
+bool ray_torus_shape(in Ray ray, in Torus torus, inout HitResult result)
+{
+	Ray local_ray = transform_ray(ray, inverse(torus.transform));
+	HitInfo torus_hit = ray_torus(local_ray, torus.primitive);
+	
+#if DEBUG
+	++result.shape_test_count;
+#endif //DEBUG
+	
+	if (!torus_hit.hit)
+		return false;
+	
+	torus_hit.dist = length_squared((torus.transform * vec4(torus_hit.point - local_ray.origin, 0.0)).xyz);
+	
+	if (torus_hit.dist >= result.info.dist * result.info.dist)
+		return false;
+	
+	torus_hit.dist = sqrt(torus_hit.dist);
+	torus_hit.point = (torus.transform * vec4(torus_hit.point, 1.0)).xyz;
+	torus_hit.normal = (torus.transform * vec4(torus_hit.normal, 0.0)).xyz;
+	result.info = torus_hit;
+	result.material_index = torus.material_index;
+	return true;
+}
+
 HitResult trace_ray_collision(in Ray ray)
 {
 	HitResult result = get_default_result();
@@ -598,7 +728,12 @@ HitResult trace_ray_collision(in Ray ray)
 	
 	int bvh_stack[GLOBAL_BVH_DEPTH + 1];
 	int stack_index = -1;
+	
+#if DEBUG
 	int depth = max_bvh_depth == 0u ? GLOBAL_BVH_DEPTH + 1 : clamp(int(max_bvh_depth), 1, GLOBAL_BVH_DEPTH + 1);
+#else
+	int depth = GLOBAL_BVH_DEPTH;
+#endif //DEBUG
 	
 	bvh_stack[stack_index + 1] = 0; // Add root to stack
 	++stack_index;
@@ -673,6 +808,18 @@ HitResult trace_ray_collision(in Ray ray)
 			{
 				--stack_index;
 				ray_sphere_shape(ray, get_sphere(shape.data_texel_index), result);
+				break;
+			}
+			case CYLINDER:
+			{
+				--stack_index;
+				ray_cylinder_shape(ray, get_cylinder(shape.data_texel_index), result);
+				break;
+			}
+			case TORUS:
+			{
+				--stack_index;
+				ray_torus_shape(ray, get_torus(shape.data_texel_index), result);
 				break;
 			}
 			default:

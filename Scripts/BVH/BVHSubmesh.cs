@@ -24,12 +24,12 @@ public class BVHSubmesh : BVHMeshVolume
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public SubmeshData GetShaderData(Dictionary<Material, int> pMaterialMap, int pChildOffset = 0)
+	public SubmeshData GetShaderData(int pChildOffset, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
 	{
 		return new SubmeshData {
 			startIndex = children.Count > 0 ? pChildOffset : startIndex,
 			count = children.Count > 0 ? 0 : count,
-			materialIndex = pMaterialMap.GetValueNoError(material, -1),
+			materialIndex = pMaterialMap.GetValueNoError(material ?? pDefaultMaterial, -1),
 		};
 	}
 }

@@ -1,29 +1,42 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
 using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
 
-[GlobalClass, Tool]
-public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
+[Tool, GlobalClass]
+public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape
 {
-	public const int SPHERE_DATA_SIZE = 2;
-	public const float INV_SPHERE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SPHERE_DATA_SIZE);
+	public const int TORUS_DATA_SIZE = 5;
+	public const float INV_CYLINDER_BYTE_SIZE = 1f / (TORUS_DATA_SIZE * Raytracer.TEXEL_SIZE);
 
-	public ERaytracedShapeType Type => ERaytracedShapeType.Sphere;
+	public ERaytracedShapeType Type => ERaytracedShapeType.Torus;
 
 	public ShapeBounds Bounds
 	{
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		get
 		{
-			vec3 lOrigin = fromVariant(GlobalPosition);
-			vec3 lExtent = new vec3(Radius) * fromVariant(GlobalTransform.Basis.Scale);
+			mat4 lLocalToWorld = GlobalTransform;
+			float lHalfHeight = OuterRadius - InnerRadius * .5f;
+			vec3 lMin = new vec3(Mathf.Inf);
+			vec3 lMax = new vec3(-Mathf.Inf);
+
+			for (int i = 0; i < 8; i++)
+			{
+				vec3 lCorner = (lLocalToWorld * new vec4(
+					OuterRadius * (i % 2 == 0 ? 1 : -1),
+					lHalfHeight * (i % 4 < 2 ? 1 : -1),
+					OuterRadius * (i < 4 ? 1 : -1),
+					0f
+				)).xyz;
+				lMin = min(lCorner, lMin);
+				lMax = max(lCorner, lMax);
+			}
+
 			return new ShapeBounds {
-				min = lOrigin - lExtent,
-				max = lOrigin + lExtent,
+				min = lMin,
+				max = lMax,
 			};
 		}
 	}
@@ -72,21 +85,22 @@ public partial class RaytracedSphere : CsgSphere3D, IRaytracedShape
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ShapeData GetShapeData(int pTexelIndex)
 	{
+		ShapeBounds lBounds = Bounds;
 		return new ShapeData {
-			type = (int)ERaytracedShapeType.Sphere,
+			type = (int)ERaytracedShapeType.Cylinder,
 			dataTexelIndex = pTexelIndex,
-			boundMin = Bounds.min,
-			boundMax = Bounds.max,
+			boundMin = lBounds.min,
+			boundMax = lBounds.max,
 		};
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public SphereData GetShaderData(Dictionary<Material, int> pMaterialMap)
+	public TorusData GetShaderData(Dictionary<Material, int> pMaterialMap)
 	{
-		return new SphereData {
-			center = new vec3(GlobalPosition.X, GlobalPosition.Y, GlobalPosition.Z),
-			radius = Radius,
-			scale = fromVariant(GlobalBasis.Scale),
+		return new TorusData {
+			innerRadius = InnerRadius,
+			outerRadius = OuterRadius,
+			transform = GlobalTransform,
 			materialIndex = pMaterialMap.GetValueNoError(Materials[0] ?? raytracer?.DefaultObjectMaterial, -1),
 		};
 	}

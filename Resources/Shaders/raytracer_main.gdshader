@@ -107,7 +107,7 @@ TraceResult trace(in Ray ray, inout uint rng_state)
 		if (hit_result.material_index < 0)
 		{
 			// Fallback material
-			light += vec3(1.0, 0.0, 1.0);
+			light += i == 0 ? vec3(1.0, 0.0, 1.0) : vec3(0.0);
 			break;
 		}
 		
@@ -166,12 +166,14 @@ void display(inout vec3 albedo, in vec2 uv, in vec3 ray_origin, in vec3 view_poi
 		float weight = 1.0 / (float(frame_count) + 1.0);
 		albedo.rgb = last_color * (1.0 - weight) + albedo.rgb * weight;
 	}
+#if DEBUG
 	else if (debug_focus_plane)
 	{
 		Ray ray = get_ray(ray_origin, view_point, screen_size, false, rng_state);
 		HitResult hit_result = trace_ray_collision(ray);
 		albedo.rgb *= mix(vec3(1.0), vec3(0.125, 1.0, 0.25), float(!hit_result.info.hit || get_focus_plane_dist(ray) <= hit_result.info.dist));
 	}
+#endif //DEBUG
 }
 
 #if DEBUG
@@ -196,8 +198,16 @@ void debug_unshaded(inout vec3 albedo, in Ray ray)
 	
 	if (result.info.hit)
 	{
-		Material material = get_material(result.material_index);
-		albedo.rgb = material.color.xyz;
+		if (result.material_index >= 0)
+		{
+			Material material = get_material(result.material_index);
+			vec4 texture_color = material.texture_index >= 0 ? texture(texture_buffer, vec3(result.info.uv, float(material.texture_index))) : vec4(1.0);
+			albedo.rgb = material.color.rgb * texture_color.rgb;
+		}
+		else
+		{
+			albedo.rgb = vec3(1.0, 0.0, 1.0);
+		}
 	}
 	
 	if (debug_focus_plane)
@@ -244,13 +254,17 @@ void debug_shape_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 void debug_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
 	int volume_tests = 0, shape_tests = 0;
-	HitResult result = trace_ray_collision(ray);
-	volume_tests += result.volume_test_count;
-	shape_tests += result.shape_test_count;
+	
+	for (int i = 0; i < int(ray_count); i++)
+	{
+		TraceResult result = trace(ray, rng_state);
+		volume_tests += result.volume_test_count;
+		shape_tests += result.shape_test_count;
+	}
 	
 	albedo.rgb = mix(
 		vec3(float(shape_tests) / float(max_shape_tests), 0.0, float(volume_tests - 1) / float(max_volume_tests)),
-		vec3(1.0, 0.0, 0.0),
+		vec3(0.0, 1.0, 0.0),
 		float(volume_tests >= max_volume_tests || shape_tests >= max_shape_tests)
 	);
 }

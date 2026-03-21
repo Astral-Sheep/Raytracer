@@ -36,6 +36,7 @@ public partial class Raytracer : PostProcessLayer
 	[ExportGroup("Editor debug")]
 	[Export] protected bool print = false;
 	[Export] protected bool printOnce = false;
+	[Export] protected bool updateAlways = false;
 
 	[ExportGroup("")]
 	[Export]
@@ -60,7 +61,7 @@ public partial class Raytracer : PostProcessLayer
 	}
 	protected bool _enableAccumulation = false;
 
-	[Export] public RaytracedMaterial DefaultObjectMaterial { get; protected set; }
+	[Export] public Material DefaultObjectMaterial { get; protected set; }
 	[Export] protected ShaderMaterial material;
 
 	[ExportToolButton("Clear shapes")]
@@ -109,6 +110,11 @@ public partial class Raytracer : PostProcessLayer
 		if (pObject == null || pObjectContainer.Contains(pObject))
 			return;
 
+		if (Visible && pObject is Node3D lNode)
+		{
+			lNode.Visible = false;
+		}
+
 		pObjectContainer.Add(pObject);
 	}
 
@@ -130,6 +136,11 @@ public partial class Raytracer : PostProcessLayer
 	{
 		if (pObject == null || !pObjectContainer.Contains(pObject))
 			return;
+
+		if (Visible && pObject is Node3D lNode)
+		{
+			lNode.Visible = true;
+		}
 
 		pObjectContainer.Remove(pObject);
 	}
@@ -159,10 +170,15 @@ public partial class Raytracer : PostProcessLayer
 
 	protected void OnVisibilityChanged()
 	{
-		if (Visible)
-			return;
+		// IEnumerable<Node3D> lNodes = shapes.OfType<Node3D>().Union(suns);
+		IEnumerable<Node3D> lNodes = shapes.Where(s => s.Trace && s is Node3D).OfType<Node3D>().Union(suns.Where(s => s.Trace));
 
-		EnableAccumulation = false;
+		foreach (Node3D lNode in lNodes)
+		{
+			lNode.Visible = !Visible;
+		}
+
+		EnableAccumulation = Visible && EnableAccumulation;
 	}
 
 	protected override void Dispose(bool pDisposing)
@@ -219,10 +235,12 @@ public partial class Raytracer : PostProcessLayer
 				);
 			}
 
-			// UpdateShapes();
-			UpdateSuns();
+			if (sunBuffer.updateRequested)
+			{
+				UpdateSuns();
+			}
 
-			if (updateRequested)
+			if (updateRequested || (updateAlways && shapes.Count > 0))
 			{
 				Dictionary<Material, int> lMaterialMap = UpdateMaterials();
 				UpdateBVH(lMaterialMap);
@@ -241,7 +259,11 @@ public partial class Raytracer : PostProcessLayer
 
 	protected void UpdateBVH(Dictionary<Material, int> pMaterialMap)
 	{
-		BVHResult lResult = BVHBuilder.BuildBVH(shapes.Where(s => s is Node3D { Visible: true }).ToArray(), pMaterialMap);
+		BVHResult lResult = BVHBuilder.BuildBVH(
+			shapes.Where(s => s is { Trace: true }).ToArray(),
+			pMaterialMap,
+			DefaultObjectMaterial
+		);
 
 		shapeBuffer.RawData.Clear();
 		dataBuffer.RawData.Clear();
@@ -341,14 +363,14 @@ public partial class Raytracer : PostProcessLayer
 		{
 			RaytracedSun lSun = suns[i];
 
-			if (lSun is { Visible: true })
+			if (lSun is { Trace: true })
 			{
 				sunBuffer.data.RawData.AddRange(lSun.GetBytes());
 			}
 		}
 
 		sunBuffer.data.SendData(material);
-		sunBuffer.updateRequested = sunBuffer.data.RawData.Count > 0;
+		sunBuffer.updateRequested = suns.Count > 0;
 	}
 
 	protected void UpdateFrame()

@@ -27,6 +27,7 @@ project/assembly_name="Raytracer"
 
 rendering_device/driver.windows="d3d12"
 driver/threads/thread_model=2
+occlusion_culling/use_occlusion_culling=true
 raytracing/bvh_global_depth=32
 raytracing/bvh_mesh_depth=32
 pathtracing/bvh_global_depth=32

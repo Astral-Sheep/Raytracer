@@ -61,6 +61,7 @@ public partial class RaytracedMesh : MeshInstance3D, IRaytracedShape
 		}
 	}
 
+	[Export] public bool Trace { get; set; }
 	[Export] protected Material[] materialOverrides = Array.Empty<Material>();
 	[Export] protected Raytracer raytracer;
 

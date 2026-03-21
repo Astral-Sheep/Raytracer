@@ -4,8 +4,66 @@
 [ext_resource type="Script" uid="uid://byk87rao7vn6w" path="res://Scripts/Shapes/RaytracedSphere.cs" id="1_rgh2o"]
 [ext_resource type="Script" uid="uid://de1saddwjohgl" path="res://Scripts/Raytracer.cs" id="2_idj7w"]
 [ext_resource type="Script" uid="uid://dnjf7acgbaeyg" path="res://Scripts/Shapes/RaytracedBox.cs" id="2_pbw6q"]
+[ext_resource type="Script" uid="uid://bkyv770t6y4ut" path="res://Scripts/Shapes/RaytracedMaterial.cs" id="3_v1gob"]
 [ext_resource type="Shader" uid="uid://4fral60610dw" path="res://Resources/Shaders/raytracer_main.gdshader" id="5_jw32o"]
-[ext_resource type="Material" uid="uid://dqdnjjkjivwum" path="res://Resources/Materials/Raytraced/DefaultMaterial.tres" id="6_v1gob"]
+
+[sub_resource type="Material" id="Material_50glp"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.86, 0.15480001, 0.15480001, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_vy5pj"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.2042273, 0.78405476, 0.11688823, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_bmxlf"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.38325202, 0.57354504, 0.9936742, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_4kpch"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.6117755, 0.34065536, 0.8917521, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_grg3l"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.072842576, 0.07284265, 0.072842635, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_jw32o"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.9, 0.9, 0.9, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_frkhe"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(0.94378155, 0.6978611, 0.17802987, 1)
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
+
+[sub_resource type="Material" id="Material_1p5hy"]
+resource_local_to_scene = false
+resource_name = ""
+script = ExtResource("3_v1gob")
+color = Color(1, 1, 1, 1)
+smoothness = 0.99
+specularProbability = 0.95
+metadata/_custom_type_script = "uid://bkyv770t6y4ut"
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_pbw6q"]
 size = Vector2(0.21177462, 0.1414682)
@@ -13,11 +71,11 @@ orientation = 2
 
 [sub_resource type="Image" id="Image_v1gob"]
 data = {
-"data": PackedByteArray(1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 205, 62, 141, 62, 64, 74, 40, 188, 104, 122, 70, 191, 0, 0, 0, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 83, 97, 175, 63, 42, 149, 26, 62, 212, 56, 222, 63, 0, 0, 64, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 148, 134, 206, 189, 158, 153, 25, 190, 0, 138, 180, 61, 51, 51, 179, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 220, 127, 126, 191, 179, 36, 225, 190, 96, 214, 169, 189, 0, 0, 0, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 69, 72, 169, 191, 175, 36, 225, 190, 156, 144, 157, 63, 0, 0, 0, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 11, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 91, 37, 245, 190, 51, 175, 133, 190, 50, 32, 41, 63, 0, 0, 128, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 133, 55, 100, 191, 175, 108, 171, 190, 80, 204, 130, 63, 205, 204, 76, 62, 0, 0, 128, 63, 255, 255, 127, 63, 255, 255, 127, 63, 0, 0, 0, 0),
+"data": PackedByteArray(1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 204, 193, 0, 0, 0, 0, 0, 0, 200, 65, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 3, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 205, 62, 141, 62, 64, 74, 40, 188, 104, 122, 70, 191, 0, 0, 0, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 5, 0, 0, 0, 83, 97, 175, 63, 42, 149, 26, 62, 212, 56, 222, 63, 0, 0, 64, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 6, 0, 0, 0, 148, 134, 206, 189, 158, 153, 25, 190, 0, 138, 180, 61, 51, 51, 179, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 220, 127, 126, 191, 48, 167, 202, 190, 96, 214, 169, 189, 0, 0, 0, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 7, 0, 0, 0, 69, 72, 169, 191, 175, 36, 225, 190, 156, 144, 157, 63, 0, 0, 0, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 4, 0, 0, 0, 13, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 91, 37, 245, 190, 51, 175, 133, 190, 50, 32, 41, 63, 0, 0, 128, 62, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 1, 0, 0, 0, 133, 55, 100, 191, 175, 108, 171, 190, 80, 204, 130, 63, 205, 204, 76, 62, 0, 0, 128, 63, 255, 255, 127, 63, 255, 255, 127, 63, 2, 0, 0, 0),
 "format": "RGBAFloat",
-"height": 4,
+"height": 1,
 "mipmaps": false,
-"width": 5
+"width": 23
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_jw32o"]
@@ -27,11 +85,11 @@ image = SubResource("Image_v1gob")
 
 [sub_resource type="Image" id="Image_jw32o"]
 data = {
-"data": PackedByteArray(0, 0, 128, 255, 190, 190, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0),
+"data": PackedByteArray(0, 0, 0, 0, 255, 255, 255, 255, 246, 40, 92, 63, 229, 131, 30, 62, 229, 131, 30, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 246, 32, 81, 62, 208, 183, 72, 63, 25, 99, 239, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 156, 57, 196, 62, 217, 211, 18, 63, 111, 97, 126, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 82, 157, 28, 63, 97, 106, 174, 62, 222, 73, 100, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 125, 46, 149, 61, 135, 46, 149, 61, 133, 46, 149, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 102, 102, 102, 63, 102, 102, 102, 63, 102, 102, 102, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 171, 155, 113, 63, 6, 167, 50, 63, 118, 77, 54, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 164, 112, 125, 63, 0, 0, 128, 63, 0, 0, 128, 63, 0, 0, 128, 63, 51, 51, 115, 63, 0, 0, 0, 0, 0, 0, 0, 0),
 "format": "RGBAFloat",
-"height": 1,
+"height": 4,
 "mipmaps": false,
-"width": 1
+"width": 8
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_vy5pj"]
@@ -39,11 +97,11 @@ image = SubResource("Image_jw32o")
 
 [sub_resource type="Image" id="Image_50glp"]
 data = {
-"data": PackedByteArray(69, 72, 185, 191, 182, 90, 25, 191, 52, 61, 163, 191, 1, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 0, 0, 0, 0, 69, 72, 185, 191, 90, 146, 16, 191, 179, 16, 134, 190, 1, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 156, 144, 173, 63, 1, 0, 0, 0, 102, 130, 101, 190, 182, 90, 25, 191, 52, 61, 163, 191, 1, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 2, 0, 0, 0, 238, 63, 143, 191, 90, 146, 16, 191, 179, 16, 134, 190, 1, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 179, 85, 224, 62, 3, 0, 0, 0, 69, 72, 185, 191, 88, 146, 16, 191, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 156, 144, 173, 63, 4, 0, 0, 0, 102, 130, 101, 190, 41, 161, 2, 191, 52, 61, 163, 191, 6, 0, 0, 0, 102, 159, 70, 63, 174, 189, 250, 62, 208, 244, 140, 190, 5, 0, 0, 0, 166, 194, 30, 63, 182, 90, 25, 191, 168, 113, 124, 63, 6, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 7, 0, 0, 0, 216, 212, 230, 190, 1, 0, 0, 191, 179, 16, 134, 190, 6, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 179, 85, 224, 62, 9, 0, 0, 0, 238, 63, 143, 191, 90, 146, 16, 191, 48, 235, 84, 190, 6, 0, 0, 0, 220, 127, 94, 191, 179, 36, 161, 190, 64, 83, 44, 61, 11, 0, 0, 0, 69, 72, 185, 191, 88, 146, 16, 191, 156, 144, 141, 63, 6, 0, 0, 0, 69, 72, 153, 191, 175, 36, 161, 190, 156, 144, 173, 63, 13, 0, 0, 0, 92, 181, 139, 191, 138, 233, 8, 191, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 101, 156, 63, 15, 0, 0, 0, 174, 146, 58, 191, 154, 215, 2, 191, 100, 64, 210, 62, 6, 0, 0, 0, 182, 74, 106, 190, 96, 230, 53, 188, 50, 32, 105, 63, 16, 0, 0, 0, 92, 181, 139, 191, 138, 233, 8, 191, 109, 101, 82, 63, 6, 0, 0, 0, 82, 4, 49, 191, 146, 12, 10, 190, 234, 101, 156, 63, 18, 0, 0, 0),
+"data": PackedByteArray(0, 0, 200, 193, 0, 0, 74, 194, 0, 0, 200, 193, 1, 0, 0, 0, 0, 0, 200, 65, 74, 165, 102, 63, 0, 0, 200, 65, 0, 0, 0, 0, 0, 0, 200, 193, 0, 0, 74, 194, 0, 0, 200, 193, 6, 0, 0, 0, 0, 0, 200, 65, 0, 0, 0, 191, 0, 0, 200, 65, 1, 0, 0, 0, 69, 72, 185, 191, 182, 90, 25, 191, 52, 61, 163, 191, 1, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 3, 0, 0, 0, 69, 72, 185, 191, 88, 146, 16, 191, 179, 16, 134, 190, 1, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 156, 144, 173, 63, 4, 0, 0, 0, 102, 130, 101, 190, 182, 90, 25, 191, 52, 61, 163, 191, 1, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 5, 0, 0, 0, 238, 63, 143, 191, 152, 83, 5, 191, 179, 16, 134, 190, 1, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 179, 85, 224, 62, 6, 0, 0, 0, 69, 72, 185, 191, 88, 146, 16, 191, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 156, 144, 173, 63, 7, 0, 0, 0, 102, 130, 101, 190, 41, 161, 2, 191, 52, 61, 163, 191, 6, 0, 0, 0, 102, 159, 70, 63, 174, 189, 250, 62, 208, 244, 140, 190, 8, 0, 0, 0, 166, 194, 30, 63, 182, 90, 25, 191, 168, 113, 124, 63, 6, 0, 0, 0, 170, 176, 7, 64, 74, 165, 102, 63, 106, 28, 31, 64, 10, 0, 0, 0, 216, 212, 230, 190, 1, 0, 0, 191, 179, 16, 134, 190, 6, 0, 0, 0, 28, 35, 127, 62, 200, 204, 76, 62, 179, 85, 224, 62, 12, 0, 0, 0, 238, 63, 143, 191, 152, 83, 5, 191, 48, 235, 84, 190, 6, 0, 0, 0, 220, 127, 94, 191, 48, 167, 138, 190, 64, 83, 44, 61, 14, 0, 0, 0, 69, 72, 185, 191, 88, 146, 16, 191, 156, 144, 141, 63, 6, 0, 0, 0, 69, 72, 153, 191, 175, 36, 161, 190, 156, 144, 173, 63, 16, 0, 0, 0, 92, 181, 139, 191, 138, 233, 8, 191, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 234, 101, 156, 63, 18, 0, 0, 0, 174, 146, 58, 191, 154, 215, 2, 191, 100, 64, 210, 62, 6, 0, 0, 0, 182, 74, 106, 190, 96, 230, 53, 188, 50, 32, 105, 63, 19, 0, 0, 0, 92, 181, 139, 191, 138, 233, 8, 191, 109, 101, 82, 63, 6, 0, 0, 0, 82, 4, 49, 191, 146, 12, 10, 190, 234, 101, 156, 63, 21, 0, 0, 0),
 "format": "RGBAFloat",
-"height": 2,
+"height": 5,
 "mipmaps": false,
-"width": 13
+"width": 6
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_4kpch"]
@@ -67,28 +125,28 @@ shader = ExtResource("5_jw32o")
 shader_parameter/max_bvh_depth = 0
 shader_parameter/display_type = 7
 shader_parameter/debug_focus_plane = false
-shader_parameter/max_depth = 10.0
-shader_parameter/max_volume_tests = 20
+shader_parameter/max_depth = 15.0
+shader_parameter/max_volume_tests = 35
 shader_parameter/max_shape_tests = 10
 shader_parameter/shape_buffer = SubResource("ImageTexture_4kpch")
-shader_parameter/shape_buffer_size = Vector2i(13, 2)
+shader_parameter/shape_buffer_size = Vector2i(6, 5)
 shader_parameter/data_buffer = SubResource("ImageTexture_jw32o")
-shader_parameter/data_buffer_size = Vector2i(5, 4)
+shader_parameter/data_buffer_size = Vector2i(23, 1)
 shader_parameter/vertex_buffer_size = Vector2i(0, 0)
 shader_parameter/triangle_buffer_size = Vector2i(0, 0)
 shader_parameter/material_buffer = SubResource("ImageTexture_vy5pj")
-shader_parameter/material_buffer_size = Vector2i(1, 1)
+shader_parameter/material_buffer_size = Vector2i(8, 4)
 shader_parameter/enable_environment = true
 shader_parameter/horizon_color = Color(1, 1, 1, 1)
 shader_parameter/zenith_color = Color(0.5681632, 0.70066094, 0.88788533, 1)
 shader_parameter/ground_color = Color(0.627451, 0.58431375, 0.6313726, 1)
 shader_parameter/sun_buffer = SubResource("ImageTexture_frkhe")
 shader_parameter/sun_buffer_size = Vector2i(2, 2)
-shader_parameter/ray_count = 8
-shader_parameter/bounce_count = 16
+shader_parameter/ray_count = 1
+shader_parameter/bounce_count = 1
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 0.0
-shader_parameter/focus_plane_distance_offset = 2.79
+shader_parameter/focus_plane_distance_offset = 3.0
 shader_parameter/plane_size = Vector2(0.20967785, 0.14006752)
 shader_parameter/near_clip_plane = 0.05
 shader_parameter/local_to_world_matrix = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
@@ -100,50 +158,63 @@ shader_parameter/frame_count = 0
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=962752418 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(-0.63755465, -0.03770597, -0.7694819, -0.6491733, 0.564128, 0.51022947, 0.41484734, 0.824826, -0.3841402, 0, 0, 0)
+visible = false
 light_color = Color(1, 0.92716664, 0.77, 1)
 light_energy = 2.5
 shadow_enabled = true
 script = ExtResource("1_jw32o")
+Trace = true
 focus = 250.0
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sun2" type="DirectionalLight3D" parent="." unique_id=1811935419 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(0.6292402, 0.46663398, -0.62153757, -0.08758398, 0.83718234, 0.5398653, 0.7722601, -0.28526866, 0.567659, 0, 0, 0)
+visible = false
 light_color = Color(1.540184e-06, 0.96986395, 0.7501883, 1)
 light_energy = 2.5
 shadow_enabled = true
 script = ExtResource("1_jw32o")
+Trace = true
 focus = 250.0
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere" type="CSGSphere3D" parent="." unique_id=2135020837 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.100842625, -0.15000007, 0.08815384)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.35
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_50glp")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere2" type="CSGSphere3D" parent="." unique_id=1937130957 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.47880062, -0.2611023, 0.6606475)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.25
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_vy5pj")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere3" type="CSGSphere3D" parent="." unique_id=1968320999 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, -0.00017593976, 0.00015649162, 0.0001759709, 0.99999994, -0.0001144072, -0.0001564566, 0.00011445509, 0.99999994, -0.89147216, -0.33481357, 1.0218601)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.2
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_bmxlf")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere4" type="CSGSphere3D" parent="." unique_id=1542723406 node_paths=PackedStringArray("raytracer")]
@@ -155,6 +226,8 @@ radius = 25.0
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_4kpch")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere5" type="CSGSphere3D" parent="." unique_id=1656668991 node_paths=PackedStringArray("raytracer")]
@@ -170,41 +243,53 @@ raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere6" type="CSGSphere3D" parent="." unique_id=1117003486 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.322518, -0.439733, 1.2309756)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.125
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_grg3l")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere7" type="CSGSphere3D" parent="." unique_id=1772675988 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27586976, -0.010271609, -0.7753053)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_jw32o")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere8" type="CSGSphere3D" parent="." unique_id=639010737 node_paths=PackedStringArray("raytracer")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3701576, 0.15095964, 1.7361093)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.75
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_frkhe")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Sphere9" type="CSGSphere3D" parent="." unique_id=1866206252 node_paths=PackedStringArray("raytracer")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9941385, -0.43973312, -0.08292842)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9941385, -0.3958068, -0.08292842)
+visible = false
 cast_shadow = 0
 gi_mode = 0
 radius = 0.125
 radial_segments = 48
 rings = 24
 script = ExtResource("1_rgh2o")
+Trace = true
+materialOverride = SubResource("Material_1p5hy")
 raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Box" type="CSGBox3D" parent="." unique_id=514731437 node_paths=PackedStringArray("raytracer")]
@@ -216,18 +301,19 @@ raytracer = NodePath("../Camera/Raytracer")
 
 [node name="Camera" type="Camera3D" parent="." unique_id=1589001683]
 transform = Transform3D(0.8387715, -0.26554316, 0.47534117, 0.0085807685, 0.879351, 0.47609672, -0.54441607, -0.39525756, 0.7398532, 1.6209136, 1.6437585, 2.490541)
+cull_mask = 1015808
 
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(-0.9650595, 0.10193528, -0.24102542, -0.117242485, 0.6549319, 0.746504, 0.23394051, 0.7487353, -0.62016606, -0.97396886, 2.6006167, -5.45455)
+transform = Transform3D(-0.80718195, 0.2553016, -0.53217983, -0.27490494, 0.63520855, 0.72173923, 0.52229774, 0.72888863, -0.44257593, -2.3470416, 2.4070754, -4.8477793)
+layers = 524288
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("PlaneMesh_pbw6q")
 surface_material_override/0 = SubResource("ShaderMaterial_grg3l")
 script = ExtResource("2_idj7w")
 printOnce = true
-DefaultObjectMaterial = ExtResource("6_v1gob")
 material = SubResource("ShaderMaterial_grg3l")
 ShowInSceneView = true
 metadata/_custom_type_script = "uid://bpclclickryw4"

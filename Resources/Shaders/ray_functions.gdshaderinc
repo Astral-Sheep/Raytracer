@@ -15,6 +15,7 @@ struct HitInfo
 	float dist;
 	vec3 point;
 	vec3 normal;
+	vec3 flat_normal;
 	vec2 uv;
 	bool front_face;
 };
@@ -23,6 +24,18 @@ struct SpherePrimitive
 {
 	vec3 center;
 	float radius;
+};
+
+struct CylinderPrimitive
+{
+	float radius;
+	float height;
+};
+
+struct TorusPrimitive
+{
+	float innerRadius;
+	float outerRadius;
 };
 
 struct TrianglePrimitive
@@ -39,9 +52,31 @@ HitInfo get_empty_hit()
 		MAX_DISTANCE * 2.0, // dist
 		vec3(0.0), // point
 		vec3(0.0), // normal
+		vec3(0.0), // flat_normal
 		vec2(0.0), // uv
 		false // front_face
 	);
+}
+
+Ray transform_ray(in Ray ray, in mat4 transform)
+{
+	Ray transformed_ray;
+	transformed_ray.origin = (transform * vec4(ray.origin, 1.0)).xyz;
+	transformed_ray.dir = (transform * vec4(ray.dir, 0.0)).xyz;
+	transformed_ray.invdir = 1.0 / transformed_ray.dir;
+	return transformed_ray;
+}
+
+bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist)
+{	
+	vec3 tmin = (bound_min - ray.origin) * ray.invdir;
+	vec3 tmax = (bound_max - ray.origin) * ray.invdir;
+	vec3 t0 = min(tmin, tmax);
+	vec3 t1 = max(tmin, tmax);
+	float tnear = max(max(t0.x, t0.y), t0.z);
+	float tfar = min(min(t1.x, t1.y), t1.z);
+	
+	return tnear <= tfar && tfar >= 0.0 && tnear < min_dist;
 }
 
 HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
@@ -71,12 +106,23 @@ HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
 	hit_info.dist = -(b + sqrt_delta) * 0.5;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = (hit_info.point - sphere.center) / sphere.radius;
+	hit_info.flat_normal = hit_info.normal;
 	
 	float face_direction = sign(dot(ray.dir, hit_info.normal));
 	hit_info.normal *= -face_direction;
 	hit_info.front_face = face_direction < 0.0;
 	
 	return hit_info;
+}
+
+HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
+{
+	return get_empty_hit();
+}
+
+HitInfo ray_torus(in Ray ray, in TorusPrimitive torus)
+{
+	return get_empty_hit();
 }
 
 HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)
@@ -106,6 +152,7 @@ HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)
 	hit_info.dist = dist;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = normalize(triangle.normalA * w + triangle.normalB * u + triangle.normalC * v);
+	hit_info.flat_normal = normalize((triangle.normalA + triangle.normalB + triangle.normalC) / 3.0);
 	hit_info.uv = triangle.uvA * w + triangle.uvB * u + triangle.uvC * v;
 	//hit_info.front_face = delta >= 0.0;
 	//hit_info.normal *= hit_info.front_face ? 1.0 : -1.0;
@@ -115,18 +162,6 @@ HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)
 	//hit_info.front_face = face_direction < 0.0;
 	
 	return hit_info;
-}
-
-bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist)
-{	
-	vec3 tmin = (bound_min - ray.origin) * ray.invdir;
-	vec3 tmax = (bound_max - ray.origin) * ray.invdir;
-	vec3 t0 = min(tmin, tmax);
-	vec3 t1 = max(tmin, tmax);
-	float tnear = max(max(t0.x, t0.y), t0.z);
-	float tfar = min(min(t1.x, t1.y), t1.z);
-	
-	return tnear <= tfar && tfar >= 0.0 && tnear < min_dist;
 }
 
 HitInfo ray_plane(in Ray ray, in vec3 plane_point, in vec3 plane_normal)
@@ -151,6 +186,7 @@ HitInfo ray_plane(in Ray ray, in vec3 plane_point, in vec3 plane_normal)
 	hit_info.dist = dist;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
 	hit_info.normal = plane_normal;
+	hit_info.flat_normal = hit_info.normal;
 	hit_info.front_face = true;
 	return hit_info;
 }

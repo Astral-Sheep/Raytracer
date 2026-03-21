@@ -31,6 +31,14 @@ public enum ERaytracedShapeType : byte
 	/// Not handled currently
 	/// </summary>
 	Box = 7,
+	/// <summary>
+	/// Not handled currently
+	/// </summary>
+	Cylinder = 8,
+	/// <summary>
+	/// Not handled currently
+	/// </summary>
+	Torus = 9,
 }
 
 public struct ShapeBounds

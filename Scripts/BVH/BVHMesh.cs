@@ -140,7 +140,9 @@ public class BVHMesh : IBVHVolume
 			if (Triangles[i] is not { Length: > 0 })
 				continue;
 
-			BVHSubmesh lSubmesh = new BVHSubmesh(Vertices[i], Triangles[i], basis.GlobalTransform, lTriangleCount, Triangles[i].Length, VertexOffset, lTriangleCount);
+			BVHSubmesh lSubmesh = new BVHSubmesh(Vertices[i], Triangles[i], basis.GlobalTransform, lTriangleCount, Triangles[i].Length, VertexOffset, lTriangleCount) {
+				material = basis.Materials[i],
+			};
 			children.Add(lSubmesh);
 			lTriangleCount += Triangles[i].Length;
 		}
@@ -151,11 +153,6 @@ public class BVHMesh : IBVHVolume
 		}
 		else
 		{
-			// for (int i = 0; i < children.Count; i++)
-			// {
-			// 	children[i].Split(pMaxDepth - 1, VertexOffset);
-			// }
-
 			Task.WaitAll(
 				children
 					.AsParallel()
@@ -280,7 +277,7 @@ public class BVHMesh : IBVHVolume
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public MeshData GetShaderData(Dictionary<Mesh, (int start, int count)> pMeshMap, Dictionary<Material, int> pMaterialMap, int pChildOffset = 0, int pTriangleOffset = 0)
+	public MeshData GetShaderData(Dictionary<Mesh, (int start, int count)> pMeshMap, int pChildOffset, int pTriangleOffset, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
 	{
 		if (basis?.Mesh == null)
 		{
@@ -312,7 +309,7 @@ public class BVHMesh : IBVHVolume
 			transform = basis.Transform,
 			startIndex = lMeshIndices.start,
 			count = lMeshIndices.count,
-			materialIndex = lHasSubmeshes ? -2 : pMaterialMap.GetValueNoError(basis.GetSurfaceOverrideMaterial(0), -1),
+			materialIndex = lHasSubmeshes ? -2 : pMaterialMap.GetValueNoError(basis.Materials[0] ?? pDefaultMaterial, -1),
 		};
 	}
 

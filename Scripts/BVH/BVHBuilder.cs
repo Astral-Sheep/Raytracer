@@ -24,15 +24,15 @@ public static class BVHBuilder
 
 		if (lRoot.childVolumes.Count == 1 && lRoot.childShapes.Count <= 0)
 		{
-			GD.Print(lRoot.childVolumes[0].ToString(0) + "\n");
+			// GD.Print(lRoot.childVolumes[0].ToString(0) + "\n");
 			return lRoot.childVolumes[0];
 		}
 
-		GD.Print(lRoot.ToString(0) + "\n");
+		// GD.Print(lRoot.ToString(0) + "\n");
 		return lRoot;
 	}
 
-	public static BVHResult BuildBVH(IBVHVolume pRoot, Dictionary<Material, int> pMaterialMap)
+	public static BVHResult BuildBVH(IBVHVolume pRoot, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
 	{
 		if (pRoot == null)
 		{
@@ -73,7 +73,6 @@ public static class BVHBuilder
 
 		// Hierarchy
 		List<object> lObjectsToAdd = new List<object>();
-		// List<IBVHVolume> lVolumes = new List<IBVHVolume>();
 		Dictionary<Mesh, (int start, int count)> lBuiltMeshes = new Dictionary<Mesh, (int start, int count)>();
 		lObjectsToAdd.Add(pRoot);
 
@@ -104,9 +103,10 @@ public static class BVHBuilder
 					lShapes.AddRange(lMesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
 					lData.AddRange(lMesh.GetShaderData(
 						lBuiltMeshes,
-						pMaterialMap,
 						lObjectsToAdd.Count,
-						(int)(lTriangles.Count / TriangleData.GetTexelSize())
+						(int)(lTriangles.Count / TriangleData.GetTexelSize()),
+						pMaterialMap,
+						pDefaultMaterial
 					).GetBytes());
 					lObjectsToAdd.AddRange(lMesh.children);
 					break;
@@ -114,7 +114,7 @@ public static class BVHBuilder
 				case BVHSubmesh lSubmesh:
 				{
 					lShapes.AddRange(lSubmesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lSubmesh.GetShaderData(pMaterialMap, lObjectsToAdd.Count).GetBytes());
+					lData.AddRange(lSubmesh.GetShaderData(lObjectsToAdd.Count, pMaterialMap, pDefaultMaterial).GetBytes());
 					lObjectsToAdd.AddRange(lSubmesh.children);
 					break;
 				}
@@ -134,6 +134,12 @@ public static class BVHBuilder
 						case RaytracedSphere lSphere:
 							lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
 							break;
+						case RaytracedCylinder lCylinder:
+							lData.AddRange(lCylinder.GetShaderData(pMaterialMap).GetBytes());
+							break;
+						case RaytracedTorus lTorus:
+							lData.AddRange(lTorus.GetShaderData(pMaterialMap).GetBytes());
+							break;
 						case RaytracedMesh:
 							GD.PushError("Raytraced mesh handled as shape instead of volume");
 							break;
@@ -152,99 +158,6 @@ public static class BVHBuilder
 			++lCurrentObject;
 		}
 
-		// lVolumes.Add(pRoot);
-
-		// int lCurrentVolume = 0;
-		// int lChildOffset = 0;
-
-		// while (lCurrentVolume < lVolumes.Count)
-		// {
-		// 	IBVHVolume lVolume = lVolumes[lCurrentVolume];
-		// 	GD.PrintRich(
-		// 		$"[color=#f5b642]{lVolume.GetType().Name}[/color] ({lCurrentVolume}):\n" +
-		// 		$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
-		// 		$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n" +
-		// 		$"start: {lVolumes.Count + lChildOffset}\n"
-		// 	);
-		//
-		// 	switch (lVolume)
-		// 	{
-		// 		case BVHGlobalVolume lGlobalVolume:
-		// 		{
-		// 			lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-		// 			lData.AddRange(lGlobalVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
-		//
-		// 			for (int i = 0; i < lGlobalVolume.childShapes.Count; i++)
-		// 			{
-		// 				IRaytracedShape lShape = lGlobalVolume.childShapes[i];
-		// 				GD.PrintRich(
-		// 					$"[color=#42c2f5]{lShape.GetType().Name}[/color] ({lVolumes.Count + lChildOffset + i}):\n" +
-		// 					$"shape texel index: {lShapes.Count / Raytracer.TEXEL_SIZE}\n" +
-		// 					$"data texel index: {lData.Count / Raytracer.TEXEL_SIZE}\n"
-		// 				);
-		// 				lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-		//
-		// 				switch (lShape)
-		// 				{
-		// 					case RaytracedSphere lSphere:
-		// 						lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
-		// 						break;
-		// 					case RaytracedMesh:
-		// 						GD.PushError("Raytraced mesh handled as shape instead of volume");
-		// 						break;
-		// 					default:
-		// 						GD.PushWarning($"Unhandled raytraced shape: {lShape.GetType().Name}");
-		// 						break;
-		// 				}
-		// 			}
-		//
-		// 			lVolumes.AddRange(lGlobalVolume.childVolumes);
-		// 			lChildOffset += lGlobalVolume.childShapes.Count;
-		// 			break;
-		// 		}
-		// 		case BVHMesh lMesh:
-		// 		{
-		// 			if (!lBuiltMeshes.ContainsKey(lMesh.Mesh))
-		// 			{
-		// 				lVertices.AddRange(lMesh.GetVertexBufferData());
-		// 				lTriangles.AddRange(lMesh.GetTriangleBufferData());
-		// 			}
-		//
-		// 			lShapes.AddRange(lMesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-		// 			lData.AddRange(lMesh.GetShaderData(
-		// 				lBuiltMeshes,
-		// 				pMaterialMap,
-		// 				lVolumes.Count + lChildOffset,
-		// 				(int)(lTriangles.Count / TriangleData.GetTexelSize())
-		// 			).GetBytes());
-		//
-		// 			lVolumes.AddRange(lMesh.children);
-		// 			break;
-		// 		}
-		// 		case BVHSubmesh lSubmesh:
-		// 		{
-		// 			lShapes.AddRange(lSubmesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-		// 			lData.AddRange(lSubmesh.GetShaderData(pMaterialMap, lVolumes.Count + lChildOffset).GetBytes());
-		// 			lVolumes.AddRange(lSubmesh.children);
-		// 			break;
-		// 		}
-		// 		case BVHMeshVolume lMeshVolume:
-		// 		{
-		// 			lShapes.AddRange(lMeshVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-		// 			lData.AddRange(lMeshVolume.GetShaderData(lVolumes.Count + lChildOffset).GetBytes());
-		// 			lVolumes.AddRange(lMeshVolume.children);
-		// 			break;
-		// 		}
-		// 		default:
-		// 		{
-		// 			GD.PushError($"Unknown BVH volume type: {lVolume.GetType().Name}");
-		// 			break;
-		// 		}
-		// 	}
-		//
-		// 	++lCurrentVolume;
-		// }
-
 		return new BVHResult {
 			shapeBuffer = lShapes.ToArray(),
 			dataBuffer = lData.ToArray(),
@@ -254,9 +167,9 @@ public static class BVHBuilder
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap)
+	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
 	{
-		return BuildBVH(GenerateBVH(pShapes), pMaterialMap);
+		return BuildBVH(GenerateBVH(pShapes), pMaterialMap, pDefaultMaterial);
 	}
 
 	public static (bool splittable, vec3 axis) GetSplitAxis(IBVHVolume pVolume)

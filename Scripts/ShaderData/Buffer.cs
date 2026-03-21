@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -55,7 +57,7 @@ public struct DataBuffer : IBuffer
 		}
 
 		Image lImage = Buffer.Image;
-		lImage.SetData(lTextureSize.X, lTextureSize.Y, false, Image.Format.Rgbaf, RawData.ToArray());
+		lImage.SetData(lTextureSize.X, lTextureSize.Y, false, lImage.GetFormat(), RawData.ToArray());
 		Buffer.SetImage(lImage);
 
 		pMaterial.SetShaderParameter(Name, Buffer);

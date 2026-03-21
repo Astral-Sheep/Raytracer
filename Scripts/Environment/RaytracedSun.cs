@@ -8,6 +8,7 @@ namespace Astral.Raytracer;
 [GlobalClass, Tool]
 public partial class RaytracedSun : DirectionalLight3D, IRaytracedObject
 {
+	[Export] public bool Trace { get; set; }
 	[Export] protected float focus = 1000f;
 	[Export] protected Raytracer raytracer;
 
