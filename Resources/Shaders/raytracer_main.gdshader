@@ -112,6 +112,7 @@ TraceResult trace(in Ray ray, inout uint rng_state)
 		}
 		
 		Material material = get_material(hit_result.material_index);
+		vec3 normal = material.flat_shading ? hit_result.info.flat_normal : hit_result.info.normal;
 		
 		ray.origin = hit_result.info.point;
 		vec3 diffuse_dir = normalize(hit_result.info.normal + random_dir(rng_state));
@@ -241,14 +242,14 @@ void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 
 void debug_volume_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
-	int volume_tests = trace_ray_collision(ray).volume_test_count;
-	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(volume_tests) / float(max_volume_tests)), vec3(1.0, 0.0, 0.0), float(volume_tests >= max_volume_tests));
+	int volume_tests = trace(ray, rng_state).volume_test_count;
+	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(volume_tests) / float(max_volume_tests)), vec3(1.0, 0.0, 0.0), float(volume_tests > max_volume_tests));
 }
 
 void debug_shape_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
-	int shape_tests = trace_ray_collision(ray).shape_test_count;
-	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(shape_tests) / float(max_shape_tests)), vec3(1.0, 0.0, 0.0), float(shape_tests >= max_shape_tests));
+	int shape_tests = trace(ray, rng_state).shape_test_count;
+	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(shape_tests) / float(max_shape_tests)), vec3(1.0, 0.0, 0.0), float(shape_tests > max_shape_tests));
 }
 
 void debug_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
@@ -265,7 +266,7 @@ void debug_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 	albedo.rgb = mix(
 		vec3(float(shape_tests) / float(max_shape_tests), 0.0, float(volume_tests - 1) / float(max_volume_tests)),
 		vec3(0.0, 1.0, 0.0),
-		float(volume_tests >= max_volume_tests || shape_tests >= max_shape_tests)
+		float(volume_tests > max_volume_tests || shape_tests > max_shape_tests)
 	);
 }
 

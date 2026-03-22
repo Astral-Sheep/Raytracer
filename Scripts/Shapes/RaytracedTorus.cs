@@ -28,7 +28,7 @@ public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape
 					OuterRadius * (i % 2 == 0 ? 1 : -1),
 					lHalfHeight * (i % 4 < 2 ? 1 : -1),
 					OuterRadius * (i < 4 ? 1 : -1),
-					0f
+					1f
 				)).xyz;
 				lMin = min(lCorner, lMin);
 				lMax = max(lCorner, lMax);

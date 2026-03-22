@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Astral.Tools;
 using Godot;
 
@@ -24,11 +26,9 @@ public static class BVHBuilder
 
 		if (lRoot.childVolumes.Count == 1 && lRoot.childShapes.Count <= 0)
 		{
-			// GD.Print(lRoot.childVolumes[0].ToString(0) + "\n");
 			return lRoot.childVolumes[0];
 		}
 
-		// GD.Print(lRoot.ToString(0) + "\n");
 		return lRoot;
 	}
 
@@ -180,45 +180,87 @@ public static class BVHBuilder
 		vec3 lStart = pVolume.Min + lStep;
 		vec3 lSize = abs(pVolume.Max - pVolume.Min);
 
-		vec3 lBestAxis = new vec3(float.NaN);
+		// vec3 lBestAxis = new vec3(float.NaN);
 		float lBestScore = lSize.x * lSize.y * lSize.z * pVolume.ChildCount;
 
-		for (int i = 0; i < lSplitTests; i++)
-		{
-			vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
-			float lScore = pVolume.GetSplitScore(lAxis);
+		// DateTime lTimeStart = DateTime.UtcNow;
+		Task<(float, vec3)[]> lTests = Task.WhenAll(
+			Task.Run(() => {
+				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
 
-			if (pVolume.GetSplitScore(lAxis) < lBestScore)
-			{
-				lBestAxis = lAxis;
-				lBestScore = lScore;
-			}
-		}
+				Parallel.For(0, lSplitTests, i => {
+					vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
+					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+				});
+				return lScores.AsParallel().MinBy(s => s.score);
+			}),
+			Task.Run(() => {
+				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
 
-		for (int i = 0; i < lSplitTests; i++)
-		{
-			vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
-			float lScore = pVolume.GetSplitScore(lAxis);
+				Parallel.For(0, lSplitTests, i => {
+					vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
+					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+				});
+				return lScores.AsParallel().MinBy(s => s.score);
+			}),
+			Task.Run(() => {
+				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
 
-			if (pVolume.GetSplitScore(lAxis) < lBestScore)
-			{
-				lBestAxis = lAxis;
-				lBestScore = lScore;
-			}
-		}
+				Parallel.For(0, lSplitTests, i => {
+					vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
+					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+				});
+				return lScores.AsParallel().MinBy(s => s.score);
+			})
+		);
+		lTests.Wait();
+		(float score, vec3 axis) = lTests.Result.AsParallel().MinBy(s => s.Item1);
+		return (score < lBestScore, axis);
+		// TimeSpan lMultiDuration = DateTime.UtcNow - lTimeStart;
+		//
+		// lTimeStart = DateTime.UtcNow;
+		// for (int i = 0; i < lSplitTests; i++)
+		// {
+		// 	vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
+		// 	float lScore = pVolume.GetSplitScore(lAxis);
+		//
+		// 	if (lScore < lBestScore)
+		// 	{
+		// 		lBestAxis = lAxis;
+		// 		lBestScore = lScore;
+		// 	}
+		// }
+		//
+		// for (int i = 0; i < lSplitTests; i++)
+		// {
+		// 	vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
+		// 	float lScore = pVolume.GetSplitScore(lAxis);
+		//
+		// 	if (lScore < lBestScore)
+		// 	{
+		// 		lBestAxis = lAxis;
+		// 		lBestScore = lScore;
+		// 	}
+		// }
+		//
+		// for (int i = 0; i < lSplitTests; i++)
+		// {
+		// 	vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
+		// 	float lScore = pVolume.GetSplitScore(lAxis);
+		//
+		// 	if (lScore < lBestScore)
+		// 	{
+		// 		lBestAxis = lAxis;
+		// 		lBestScore = lScore;
+		// 	}
+		// }
+		// TimeSpan lSingleDuration = DateTime.UtcNow - lTimeStart;
 
-		for (int i = 0; i < lSplitTests; i++)
-		{
-			vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
-			float lScore = pVolume.GetSplitScore(lAxis);
-
-			if (pVolume.GetSplitScore(lAxis) < lBestScore)
-			{
-				lBestAxis = lAxis;
-				lBestScore = lScore;
-			}
-		}
-
-		return (!float.IsNaN(lBestAxis.x), lBestAxis);
+		// GD.PrintRich(
+		// 	$"[color=#{(lSingleDuration < lMultiDuration ? "33e88e" : "eb4034")}]Main thread score: {lBestScore} with axis ({lBestAxis.x}, {lBestAxis.y}, {lBestAxis.z}) in {lSingleDuration}[/color]\n" +
+		// 	$"[color=#{(lSingleDuration >= lMultiDuration ? "33e88e" : "eb4034")}]Multithreaded score: {score} with axis ({axis.x}, {axis.y}, {axis.z}) in {lMultiDuration}[/color]\n"
+		// );
+		// return (score < lBestScore || !float.IsNaN(lBestAxis.x), score < lBestScore ? axis : lBestAxis);
+		// return (!float.IsNaN(lBestAxis.x), lBestAxis);
 	}
 }

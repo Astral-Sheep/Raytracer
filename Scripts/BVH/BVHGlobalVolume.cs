@@ -15,7 +15,9 @@ public class BVHGlobalVolume : IBVHVolume
 
 	public readonly List<IRaytracedShape> childShapes = new List<IRaytracedShape>();
 	public readonly List<IBVHVolume> childVolumes = new List<IBVHVolume>();
+
 	protected Dictionary<Mesh, BVHMesh> builtMeshes = new Dictionary<Mesh, BVHMesh>();
+	protected List<ShapeBounds> childBounds = new List<ShapeBounds>();
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public BVHGlobalVolume()
@@ -25,36 +27,51 @@ public class BVHGlobalVolume : IBVHVolume
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public BVHGlobalVolume(IRaytracedShape[] pShapes = null, Dictionary<Mesh, BVHMesh> pBuiltMeshes = null)
+	public BVHGlobalVolume(IRaytracedShape[] pShapes = null, ShapeBounds[] pShapeBounds = null, Dictionary<Mesh, BVHMesh> pBuiltMeshes = null)
 	{
 		Min = new vec3(0f);
 		Max = new vec3(0f);
 		childShapes = new List<IRaytracedShape>(pShapes ?? Array.Empty<IRaytracedShape>());
 		ChildCount = childShapes.Count;
 		builtMeshes = pBuiltMeshes ?? new Dictionary<Mesh, BVHMesh>();
+		childBounds = new List<ShapeBounds>(pShapeBounds ?? Array.Empty<ShapeBounds>());
 
-		for (int i = 0; i < childShapes.Count; i++)
+		if (childBounds.Count <= 0 && childShapes.Count > 0)
 		{
-			IRaytracedShape lShape = childShapes[i];
-			Min = min(Min, lShape.Bounds.min);
-			Max = max(Max, lShape.Bounds.max);
+			childBounds = new List<ShapeBounds>(childShapes.Select(s => s.Bounds));
+
+			// Parallel.For(0, childShapes.Count, i => {
+			// 	childBounds[i] = childShapes[i].Bounds;
+			// });
+
+			// childBounds ??= childShapes != null
+			// 	? childShapes.AsParallel().Select(s => s.Bounds).ToArray()
+			// 	: Array.Empty<ShapeBounds>();
+		}
+
+		for (int i = 0; i < childBounds.Count; i++)
+		{
+			ShapeBounds lBounds = childBounds[i];
+			Min = min(Min, lBounds.min);
+			Max = max(Max, lBounds.max);
 		}
 	}
 
-	public void Include(IRaytracedShape pShape)
+	public void Include(IRaytracedShape pShape, ShapeBounds pBounds)
 	{
 		if (childShapes.Contains(pShape))
 			return;
 
-		IncludeNoCheck(pShape);
+		IncludeNoCheck(pShape, pBounds);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void IncludeNoCheck(IRaytracedShape pShape)
+	public void IncludeNoCheck(IRaytracedShape pShape, ShapeBounds pBounds)
 	{
-		Min = min(Min, pShape.Bounds.min);
-		Max = max(Max, pShape.Bounds.max);
+		Min = min(Min, pBounds.min);
+		Max = max(Max, pBounds.max);
 		childShapes.Add(pShape);
+		childBounds.Add(pBounds);
 		++ChildCount;
 	}
 
@@ -86,11 +103,11 @@ public class BVHGlobalVolume : IBVHVolume
 
 			if (all(lessThanEqual(lShape.Bounds.Center, lSplitAxis)))
 			{
-				lChild0.IncludeNoCheck(lShape);
+				lChild0.IncludeNoCheck(lShape, childBounds[i]);
 			}
 			else
 			{
-				lChild1.IncludeNoCheck(lShape);
+				lChild1.IncludeNoCheck(lShape, childBounds[i]);
 			}
 		}
 
@@ -155,34 +172,59 @@ public class BVHGlobalVolume : IBVHVolume
 		return pVertexIndexOffset;
 	}
 
-	/// <summary>
-	/// Warning: this method only works if the volume wasn't split. I know it's a bad practice but I don't care
-	/// </summary>
+	// public float GetSplitScore(vec3 pAxis)
+	// {
+	// 	return GetSplitScoreThreadSafe(pAxis, childBounds);
+	// 	// (int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
+	// 	// (int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
+	// 	//
+	// 	// for (int i = 0; i < childShapes.Count; i++)
+	// 	// {
+	// 	// 	IRaytracedShape lShape = childShapes[i];
+	// 	//
+	// 	// 	if (all(lessThanEqual(lShape.Bounds.Center, pAxis)))
+	// 	// 	{
+	// 	// 		++lVolume0.count;
+	// 	// 		lVolume0.min = min(lVolume0.min, lShape.Bounds.min);
+	// 	// 		lVolume0.max = max(lVolume0.max, lShape.Bounds.max);
+	// 	// 	}
+	// 	// 	else
+	// 	// 	{
+	// 	// 		++lVolume1.count;
+	// 	// 		lVolume1.min = min(lVolume1.min, lShape.Bounds.min);
+	// 	// 		lVolume1.max = max(lVolume1.max, lShape.Bounds.max);
+	// 	// 	}
+	// 	// }
+	// 	//
+	// 	// return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
+	// 	// 	+ lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+	// }
+
 	public float GetSplitScore(vec3 pAxis)
 	{
 		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
 		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
 
-		for (int i = 0; i < childShapes.Count; i++)
+		for (int i = 0; i < childBounds.Count; i++)
 		{
-			IRaytracedShape lShape = childShapes[i];
+			ShapeBounds lBounds = childBounds[i];
 
-			if (all(lessThanEqual(lShape.Bounds.Center, pAxis)))
+			if (all(lessThanEqual(lBounds.Center, pAxis)))
 			{
 				++lVolume0.count;
-				lVolume0.min = min(lVolume0.min, lShape.Bounds.min);
-				lVolume0.max = max(lVolume0.max, lShape.Bounds.max);
+				lVolume0.min = min(lVolume0.min, lBounds.min);
+				lVolume0.max = max(lVolume0.max, lBounds.max);
 			}
 			else
 			{
 				++lVolume1.count;
-				lVolume1.min = min(lVolume1.min, lShape.Bounds.min);
-				lVolume1.max = max(lVolume1.max, lShape.Bounds.max);
+				lVolume1.min = min(lVolume1.min, lBounds.min);
+				lVolume1.max = max(lVolume1.max, lBounds.max);
 			}
 		}
 
 		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
-			+ lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

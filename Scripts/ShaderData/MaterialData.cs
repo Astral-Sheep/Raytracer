@@ -57,12 +57,14 @@ public struct MaterialData : IShaderData
 				lWriter.Write(specularColor.b); // 52: 4 bytes
 				lWriter.Write(specularProbability); // 56: 4 bytes
 
-				lWriter.Write(flatShading); // 60: 4 bytes
+				lWriter.Write(Convert.ToInt32(flatShading)); // 60: 4 bytes
 
 				int lSize = GetMarshalSize();
 
 				if (lSize % Raytracer.TEXEL_SIZE != 0)
 				{
+					// byte[] lPadding = new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE];
+					// lWriter.Write(lPadding);
 					lWriter.Write(new byte[Raytracer.TEXEL_SIZE - lSize % Raytracer.TEXEL_SIZE]);
 				}
 			}

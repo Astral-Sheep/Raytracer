@@ -79,7 +79,8 @@ struct BoundingVolume
 
 struct Sphere
 {
-	SpherePrimitive primitive;
+	float radius;
+	vec3 center;
 	vec3 scale;
 	int material_index;
 };
@@ -140,6 +141,7 @@ struct Material
 	float smoothness;
 	vec3 specular_color;
 	float specular_probability;
+	bool flat_shading;
 };
 
 struct HitResult
@@ -196,6 +198,9 @@ Material get_material(in int index)
 	mat.specular_color.b = raw_data3.x;
 	mat.specular_probability = raw_data3.y;
 	
+	//mat.flat_shading = bool(floatBitsToInt(raw_data3.z) != 0);
+	mat.flat_shading = false;
+	
 	//mat.type = raw_bytes.x & 0xFF;
 	//mat.texture_index = ((raw_bytes.x & 0xFFFF00) >> 0x08) - (MIN_SHORT - 1);
 	//
@@ -231,7 +236,8 @@ Material get_empty_material()
 		0.0, // emissive_intensity
 		0.0, // smoothness
 		vec3(0.0), // specular_color
-		0.0 // specular_probability
+		0.0, // specular_probability
+		false // flat_shading
 	);
 }
 
@@ -254,10 +260,8 @@ Sphere get_sphere(in int texel_index)
 	vec4 raw_data1 = get_buffer_texel(data_buffer, texel_index + 1, data_buffer_size);
 	
 	return Sphere(
-		SpherePrimitive(
-			raw_data0.xyz, // center
-			raw_data0.w // radius
-		),
+		raw_data0.w, // radius
+		raw_data0.xyz, // center
 		raw_data1.xyz, // scale
 		floatBitsToInt(raw_data1.w) // material_index
 	);
@@ -615,6 +619,7 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 	{
 		result.info.point = (mesh.transform * vec4(result.info.point, 1.0)).xyz;
 		result.info.normal = (mesh.transform * vec4(result.info.normal, 0.0)).xyz;
+		result.info.flat_normal = (mesh.transform * vec4(result.info.flat_normal, 0.0)).xyz;
 	}
 	
 	return hit;
@@ -623,12 +628,12 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 bool ray_leaf_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 {
 	bool hit = false;
-	Ray local_ray = transform_ray(ray, inverse(mesh.transform));
 	
-	if (ray_local_triangles(local_ray, mesh.start_index, mesh.count, mesh.transform, result))
+	if (ray_local_triangles(transform_ray(ray, inverse(mesh.transform)), mesh.start_index, mesh.count, mesh.transform, result))
 	{
 		result.info.point = (mesh.transform * vec4(result.info.point, 1.0)).xyz;
 		result.info.normal = (mesh.transform * vec4(result.info.normal, 0.0)).xyz;
+		result.info.flat_normal = (mesh.transform * vec4(result.info.flat_normal, 0.0)).xyz;
 		result.material_index = mesh.material_index;
 		hit = true;
 	}
@@ -638,11 +643,11 @@ bool ray_leaf_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 
 bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 {
-	Ray scaled_ray;
-	scaled_ray.origin = ray.origin / sphere.scale;
-	scaled_ray.dir = normalize(ray.dir / sphere.scale);
+	Ray local_ray;
+	local_ray.origin = (ray.origin - sphere.center) / sphere.scale;
+	local_ray.dir = normalize(ray.dir / sphere.scale);
 	
-	HitInfo sphere_hit = ray_sphere(scaled_ray, sphere.primitive);
+	HitInfo sphere_hit = ray_sphere(local_ray, sphere.radius);
 	
 #if DEBUG
 	++result.shape_test_count;
@@ -651,7 +656,7 @@ bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 	if (!sphere_hit.hit)
 		return false;
 	
-	sphere_hit.point = sphere_hit.point * sphere.scale;
+	sphere_hit.point = sphere_hit.point * sphere.scale + sphere.center;
 	sphere_hit.dist = length_squared(sphere_hit.point - ray.origin);
 	
 	if (sphere_hit.dist >= result.info.dist * result.info.dist)
@@ -659,6 +664,7 @@ bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 	
 	sphere_hit.dist = sqrt(sphere_hit.dist);
 	sphere_hit.normal = normalize(sphere_hit.normal * sphere.scale);
+	sphere_hit.flat_normal = sphere_hit.normal;
 	result.info = sphere_hit;
 	result.material_index = sphere.material_index;
 	return true;
@@ -666,8 +672,10 @@ bool ray_sphere_shape(in Ray ray, in Sphere sphere, inout HitResult result)
 
 bool ray_cylinder_shape(in Ray ray, in Cylinder cylinder, inout HitResult result)
 {
-	Ray local_ray = transform_ray(ray, inverse(cylinder.transform));
-	HitInfo cylinder_hit = ray_cylinder(local_ray, cylinder.primitive);
+	HitInfo cylinder_hit = ray_cylinder(
+		transform_ray(ray, inverse(cylinder.transform)),
+		cylinder.primitive
+	);
 	
 #if DEBUG
 	++result.shape_test_count;
@@ -676,14 +684,15 @@ bool ray_cylinder_shape(in Ray ray, in Cylinder cylinder, inout HitResult result
 	if (!cylinder_hit.hit)
 		return false;
 	
-	cylinder_hit.dist = length_squared((cylinder.transform * vec4(cylinder_hit.point - local_ray.origin, 0.0)).xyz);
+	cylinder_hit.point = (cylinder.transform * vec4(cylinder_hit.point, 1.0)).xyz;
+	cylinder_hit.dist = length_squared(cylinder_hit.point - ray.origin);
 	
 	if (cylinder_hit.dist >= result.info.dist * result.info.dist)
 		return false;
 	
 	cylinder_hit.dist = sqrt(cylinder_hit.dist);
-	cylinder_hit.point = (cylinder.transform * vec4(cylinder_hit.point, 1.0)).xyz;
-	cylinder_hit.normal = (cylinder.transform * vec4(cylinder_hit.normal, 0.0)).xyz;
+	cylinder_hit.normal = normalize((cylinder.transform * vec4(cylinder_hit.normal, 0.0)).xyz);
+	cylinder_hit.flat_normal = cylinder_hit.normal;
 	result.info = cylinder_hit;
 	result.material_index = cylinder.material_index;
 	return true;
@@ -709,6 +718,7 @@ bool ray_torus_shape(in Ray ray, in Torus torus, inout HitResult result)
 	torus_hit.dist = sqrt(torus_hit.dist);
 	torus_hit.point = (torus.transform * vec4(torus_hit.point, 1.0)).xyz;
 	torus_hit.normal = (torus.transform * vec4(torus_hit.normal, 0.0)).xyz;
+	torus_hit.flat_normal = torus_hit.normal;
 	result.info = torus_hit;
 	result.material_index = torus.material_index;
 	return true;
@@ -731,14 +741,16 @@ HitResult trace_ray_collision(in Ray ray)
 	
 #if DEBUG
 	int depth = max_bvh_depth == 0u ? GLOBAL_BVH_DEPTH + 1 : clamp(int(max_bvh_depth), 1, GLOBAL_BVH_DEPTH + 1);
-#else
-	int depth = GLOBAL_BVH_DEPTH;
 #endif //DEBUG
 	
 	bvh_stack[stack_index + 1] = 0; // Add root to stack
 	++stack_index;
 	
+#if DEBUG
 	while (stack_index >= 0 && stack_index < depth && loop_count < MAX_LOOPS)
+#else
+	while (stack_index >= 0 && loop_count < MAX_LOOPS)
+#endif //DEBUG
 	{
 		++loop_count;
 		Shape shape = get_shape(bvh_stack[stack_index]);
@@ -759,6 +771,7 @@ HitResult trace_ray_collision(in Ray ray)
 			// Global bounding volume
 			case BOUNDING_VOLUME:
 			{
+				// TODO: sort children depending on distance and type
 				BoundingVolume volume = get_bounding_volume(shape.data_texel_index);
 				int last_child_index = bvh_stack[stack_index + 1];
 				

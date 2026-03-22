@@ -20,12 +20,6 @@ struct HitInfo
 	bool front_face;
 };
 
-struct SpherePrimitive
-{
-	vec3 center;
-	float radius;
-};
-
 struct CylinderPrimitive
 {
 	float radius;
@@ -79,13 +73,12 @@ bool ray_box(in Ray ray, in vec3 bound_min, in vec3 bound_max, in float min_dist
 	return tnear <= tfar && tfar >= 0.0 && tnear < min_dist;
 }
 
-HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
+HitInfo ray_sphere(in Ray ray, in float radius)
 {
 	HitInfo hit_info = get_empty_hit();
 	
-	vec3 origin = ray.origin - sphere.center;
-	float b = 2.0 * dot(ray.dir, origin);
-	float c = dot(origin, origin) - sphere.radius * sphere.radius;
+	float b = 2.0 * dot(ray.origin, ray.dir);
+	float c = dot(ray.origin, ray.origin) - radius * radius;
 	float delta = b * b - 4.0 * c;
 	
 	// No intersection
@@ -96,7 +89,7 @@ HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
 	
 	float sqrt_delta = sqrt(delta);
 	
-	// dist is < 0
+	// dist < 0
 	if (-b < sqrt_delta)
 	{
 		return hit_info;
@@ -105,7 +98,7 @@ HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
 	hit_info.hit = true;
 	hit_info.dist = -(b + sqrt_delta) * 0.5;
 	hit_info.point = ray.origin + ray.dir * hit_info.dist;
-	hit_info.normal = (hit_info.point - sphere.center) / sphere.radius;
+	hit_info.normal = hit_info.point / radius;
 	hit_info.flat_normal = hit_info.normal;
 	
 	float face_direction = sign(dot(ray.dir, hit_info.normal));
@@ -117,7 +110,65 @@ HitInfo ray_sphere(in Ray ray, in SpherePrimitive sphere)
 
 HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
 {
-	return get_empty_hit();
+	HitInfo hit_info = get_empty_hit();
+	
+	float a = dot(ray.dir.xz, ray.dir.xz);
+	float b = 2.0 * dot(ray.origin.xz, ray.dir.xz);
+	float c = dot(ray.origin.xz, ray.origin.xz) - cylinder.radius * cylinder.radius;
+	float delta = b * b - 4.0 * a * c;
+	
+	// No intersection
+	if (delta < 0.0)
+	{
+		return hit_info;
+	}
+	
+	float sqrt_delta = sqrt(delta);
+	
+	// dist < 0
+	if (-b < sqrt_delta)
+	{
+		return hit_info;
+	}
+	
+	float dist = -(b + sqrt_delta) / (2.0 * a);
+	vec3 hit_point = ray.origin + ray.dir * dist;
+	
+	if (abs(hit_point.y) >= cylinder.height * 0.5)
+	{
+		if (abs(ray.dir.y) < EPSILON)
+		{
+			return hit_info;
+		}
+		
+		dist = (ray.origin.y + sign(ray.dir.y) * cylinder.height * 0.5) / -ray.dir.y;
+		hit_point = ray.origin + ray.dir * dist;
+		
+		if (dist < 0.0 || dot(hit_point.xz, hit_point.xz) > cylinder.radius * cylinder.radius)
+		{
+			return hit_info;
+		}
+		
+		hit_info.hit = true;
+		hit_info.dist = dist;
+		hit_info.point = hit_point;
+		hit_info.normal = vec3(0.0, sign(hit_point.y), 0.0);
+		hit_info.flat_normal = hit_info.normal;
+	}
+	else
+	{
+		hit_info.hit = true;
+		hit_info.dist = dist;
+		hit_info.point = hit_point;
+		hit_info.normal = normalize(vec3(hit_info.point.x, 0.0, hit_info.point.z));
+		hit_info.flat_normal = hit_info.normal;
+	}
+	
+	float face_direction = sign(dot(ray.dir, hit_info.normal));
+	hit_info.normal *= -face_direction;
+	hit_info.front_face = face_direction < 0.0;
+	
+	return hit_info;
 }
 
 HitInfo ray_torus(in Ray ray, in TorusPrimitive torus)

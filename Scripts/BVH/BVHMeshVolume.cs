@@ -70,7 +70,7 @@ public class BVHMeshVolume : IBVHVolume
 
 	public virtual int Split(int pMaxDepth = 1, int pVertexIndexOffset = 0)
 	{
-		if (pMaxDepth <= 0 || triangles is not { Length: > 0 })
+		if (pMaxDepth <= 0 || count <= 1 || triangles is not { Length: > 0 } || startIndex >= triangles.Length)
 		{
 			return vertexOffset;
 		}

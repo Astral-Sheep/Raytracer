@@ -77,7 +77,8 @@ image = SubResource("Image_8f50n")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_2mo40"]
 render_priority = 1
 shader = ExtResource("1_4cyfv")
-shader_parameter/display_type = 5
+shader_parameter/max_bvh_depth = 0
+shader_parameter/display_type = 2
 shader_parameter/debug_focus_plane = false
 shader_parameter/max_depth = 10.0
 shader_parameter/max_volume_tests = 64
@@ -134,7 +135,7 @@ transform = Transform3D(0.9851157, -0.0634114, 0.15976875, 0, 0.9294686, 0.36890
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=654779828]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(0.70090705, -0.15920754, 0.6952546, 0.26311934, 0.96373165, -0.044571564, -0.6629447, 0.21417585, 0.71737695, 1.9295723, 0.5730318, -0.9534402)
+transform = Transform3D(0.70710474, -0.352462, 0.6130031, 0.2608531, 0.93579274, 0.2371624, -0.6572347, -0.007794857, 0.7536453, 2.6571615, 1.3076092, 1.1838241)
 visible = false
 cast_shadow = 0
 gi_mode = 0

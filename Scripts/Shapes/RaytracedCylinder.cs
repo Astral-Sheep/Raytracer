@@ -27,7 +27,7 @@ public partial class RaytracedCylinder : CsgCylinder3D, IRaytracedShape
 					Radius * (i % 2 == 0 ? 1 : -1),
 					Height * .5f * (i % 4 < 2 ? 1 : -1),
 					Radius * (i < 4 ? 1 : -1),
-					0f
+					1f
 				)).xyz;
 				lMin = min(lCorner, lMin);
 				lMax = max(lCorner, lMax);

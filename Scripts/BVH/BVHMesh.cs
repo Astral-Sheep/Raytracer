@@ -35,6 +35,7 @@ public class BVHMesh : IBVHVolume
 		if (basis?.Mesh == null)
 			return;
 
+		// TO FIX: store it before multithreading starts
 		Min = basis.Bounds.min;
 		Max = basis.Bounds.max;
 
@@ -169,7 +170,7 @@ public class BVHMesh : IBVHVolume
 		VertexData[] lVertices = Vertices[pSurfaceIndex];
 		TriangleData[] lTriangles = Triangles[pSurfaceIndex];
 
-		if (lTriangles is not { Length: > 0 })
+		if (lTriangles is not { Length: > 1 })
 			return;
 
 		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);

@@ -7,3 +7,4 @@
 
 [node name="dragon" parent="." index="0" unique_id=375503073]
 script = ExtResource("2_2id28")
+Trace = true
