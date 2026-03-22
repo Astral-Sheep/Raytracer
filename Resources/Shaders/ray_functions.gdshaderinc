@@ -101,9 +101,8 @@ HitInfo ray_sphere(in Ray ray, in float radius)
 	hit_info.normal = hit_info.point / radius;
 	hit_info.flat_normal = hit_info.normal;
 	
-	float face_direction = sign(dot(ray.dir, hit_info.normal));
-	hit_info.normal *= -face_direction;
-	hit_info.front_face = face_direction < 0.0;
+	// No backface since inside is not considered as intersection due to negative distance
+	hit_info.front_face = true;
 	
 	return hit_info;
 }
@@ -125,55 +124,52 @@ HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
 	
 	float sqrt_delta = sqrt(delta);
 	
-	// dist < 0
-	if (-b < sqrt_delta)
+	if (-b >= sqrt_delta)
+	{
+		float dist = -(b + sqrt(delta)) / (2.0 * a);
+		vec3 hit_point = ray.origin + ray.dir * dist;
+		
+		if (abs(hit_point.y) < cylinder.height * 0.5)
+		{
+			hit_info.hit = true;
+			hit_info.dist = dist;
+			hit_info.point = hit_point;
+			hit_info.normal = normalize(vec3(hit_info.point.x, 0.0, hit_info.point.z));
+			hit_info.flat_normal = hit_info.normal;
+			// No backface since inside is not considered as intersection due to negative distance
+			hit_info.front_face = true;
+			return hit_info;
+		}
+	}
+	
+	if (abs(ray.dir.y) < EPSILON)
 	{
 		return hit_info;
 	}
 	
-	float dist = -(b + sqrt_delta) / (2.0 * a);
+	// Cylinder top and bottom
+	float dist = (ray.origin.y + sign(ray.dir.y) * cylinder.height * 0.5) / -ray.dir.y;
 	vec3 hit_point = ray.origin + ray.dir * dist;
 	
-	if (abs(hit_point.y) >= cylinder.height * 0.5)
+	if (dist < 0.0 || dot(hit_point.xz, hit_point.xz) > cylinder.radius * cylinder.radius)
 	{
-		if (abs(ray.dir.y) < EPSILON)
-		{
-			return hit_info;
-		}
-		
-		dist = (ray.origin.y + sign(ray.dir.y) * cylinder.height * 0.5) / -ray.dir.y;
-		hit_point = ray.origin + ray.dir * dist;
-		
-		if (dist < 0.0 || dot(hit_point.xz, hit_point.xz) > cylinder.radius * cylinder.radius)
-		{
-			return hit_info;
-		}
-		
-		hit_info.hit = true;
-		hit_info.dist = dist;
-		hit_info.point = hit_point;
-		hit_info.normal = vec3(0.0, sign(hit_point.y), 0.0);
-		hit_info.flat_normal = hit_info.normal;
-	}
-	else
-	{
-		hit_info.hit = true;
-		hit_info.dist = dist;
-		hit_info.point = hit_point;
-		hit_info.normal = normalize(vec3(hit_info.point.x, 0.0, hit_info.point.z));
-		hit_info.flat_normal = hit_info.normal;
+		return hit_info;
 	}
 	
-	float face_direction = sign(dot(ray.dir, hit_info.normal));
-	hit_info.normal *= -face_direction;
-	hit_info.front_face = face_direction < 0.0;
-	
+	hit_info.hit = true;
+	hit_info.dist = dist;
+	hit_info.point = hit_point;
+	hit_info.normal = vec3(0.0, sign(hit_point.y), 0.0);
+	hit_info.flat_normal = hit_info.normal;
+	// No backface since inside is not considered as intersection due to negative distance
+	hit_info.front_face = true;
 	return hit_info;
 }
 
 HitInfo ray_torus(in Ray ray, in TorusPrimitive torus)
 {
-	return get_empty_hit();
+	HitInfo hit_info = get_empty_hit();
+	return hit_info;
 }
 
 HitInfo ray_triangle(in Ray ray, in TrianglePrimitive triangle)

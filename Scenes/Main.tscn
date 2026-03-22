@@ -147,7 +147,7 @@ shader_parameter/ground_color = Color(0.627451, 0.58431375, 0.6313726, 1)
 shader_parameter/sun_buffer = SubResource("ImageTexture_1p5hy")
 shader_parameter/sun_buffer_size = Vector2i(2, 2)
 shader_parameter/ray_count = 1
-shader_parameter/bounce_count = 1
+shader_parameter/bounce_count = 32
 shader_parameter/diverge_strength = 0.05
 shader_parameter/defocus_strength = 0.0
 shader_parameter/focus_plane_distance_offset = 3.0
@@ -323,7 +323,7 @@ cull_mask = 1015808
 [node name="Raytracer" type="MeshInstance3D" parent="Camera" unique_id=741723661]
 process_priority = 5
 physics_interpolation_mode = 2
-transform = Transform3D(-0.49180228, 0.42351502, -0.7605956, -0.41079968, 0.65730464, 0.63159823, 0.76761127, 0.62311, -0.1492974, -2.3766866, 2.4239063, -3.7010522)
+transform = Transform3D(-0.6747873, 0.42448723, -0.6034988, -0.3462004, 0.5400874, 0.76692307, 0.6515943, 0.726552, -0.2175039, -2.1516538, 2.3023534, -3.888412)
 layers = 524288
 cast_shadow = 0
 gi_mode = 0
