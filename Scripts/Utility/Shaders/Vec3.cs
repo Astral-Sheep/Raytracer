@@ -2,12 +2,15 @@ global using vec3 = Astral.Tools.Vec3<float>;
 global using ivec3 = Astral.Tools.Vec3<int>;
 global using uvec3 = Astral.Tools.Vec3<uint>;
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Godot;
 
 namespace Astral.Tools;
 
+[DebuggerDisplay("Vec3({x}, {y}, {z})")]
 public struct Vec3<T> where T : unmanaged, INumber<T>
 {
 	public T x;
@@ -832,19 +835,26 @@ public struct Vec3<T> where T : unmanaged, INumber<T>
 
 	#endregion //OPERATORS
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public override bool Equals(object pObject)
 	{
 		return pObject is Vec3<T> lVec && lVec == this;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public override int GetHashCode()
 	{
 		return x.GetHashCode() ^ y.GetHashCode() ^ z.GetHashCode();
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public override string ToString()
+	{
+		return $"Vec3<{typeof(T).Name}>({x}, {y}, {z})";
+	}
 }
 
+[DebuggerDisplay("bvec3({x}, {y}, {z})")]
 public struct bvec3
 {
 	public bool x;
@@ -1189,15 +1199,21 @@ public struct bvec3
 		return (int)vec;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public override bool Equals(object pObject)
 	{
 		return pObject is bvec3 lVec && lVec == this;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public override int GetHashCode()
 	{
 		return x.GetHashCode() ^ y.GetHashCode() ^ z.GetHashCode();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public override string ToString()
+	{
+		return $"bvec3({x}, {y}, {z})";
 	}
 }

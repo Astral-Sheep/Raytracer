@@ -1,230 +1,199 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Godot;
 
 namespace Astral.Raytracer;
 
 public class BVHGlobalVolume : IBVHVolume
 {
-	public vec3 Min { get; private set; }
-	public vec3 Max { get; private set; }
-	public int ChildCount { get; private set; }
+	public int ChildCount { get; }
 
-	public readonly List<IRaytracedShape> childShapes = new List<IRaytracedShape>();
+	public readonly VolumeChildArray children = new VolumeChildArray();
 	public readonly List<IBVHVolume> childVolumes = new List<IBVHVolume>();
 
-	protected Dictionary<Mesh, BVHMesh> builtMeshes = new Dictionary<Mesh, BVHMesh>();
-	protected List<ShapeBounds> childBounds = new List<ShapeBounds>();
+	protected Bounds bounds = new Bounds(new vec3(0f), new vec3(0f));
+	protected bool split = false;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public BVHGlobalVolume()
 	{
-		Min = new vec3(0f);
-		Max = new vec3(0f);
+		ChildCount = 0;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public BVHGlobalVolume(IRaytracedShape[] pShapes = null, ShapeBounds[] pShapeBounds = null, Dictionary<Mesh, BVHMesh> pBuiltMeshes = null)
+	public BVHGlobalVolume(IPureShape[] pShapes, BVHMesh[] pMeshes)
 	{
-		Min = new vec3(0f);
-		Max = new vec3(0f);
-		childShapes = new List<IRaytracedShape>(pShapes ?? Array.Empty<IRaytracedShape>());
-		ChildCount = childShapes.Count;
-		builtMeshes = pBuiltMeshes ?? new Dictionary<Mesh, BVHMesh>();
-		childBounds = new List<ShapeBounds>(pShapeBounds ?? Array.Empty<ShapeBounds>());
+		children = new VolumeChildArray(pShapes, pMeshes);
+		ChildCount = children.Count + childVolumes.Count;
+		split = ChildCount <= 2;
 
-		if (childBounds.Count <= 0 && childShapes.Count > 0)
+		if (ChildCount <= 0)
 		{
-			childBounds = new List<ShapeBounds>(childShapes.Select(s => s.Bounds));
-
-			// Parallel.For(0, childShapes.Count, i => {
-			// 	childBounds[i] = childShapes[i].Bounds;
-			// });
-
-			// childBounds ??= childShapes != null
-			// 	? childShapes.AsParallel().Select(s => s.Bounds).ToArray()
-			// 	: Array.Empty<ShapeBounds>();
-		}
-
-		for (int i = 0; i < childBounds.Count; i++)
-		{
-			ShapeBounds lBounds = childBounds[i];
-			Min = min(Min, lBounds.min);
-			Max = max(Max, lBounds.max);
-		}
-	}
-
-	public void Include(IRaytracedShape pShape, ShapeBounds pBounds)
-	{
-		if (childShapes.Contains(pShape))
+			bounds = new Bounds(new vec3(0f), new vec3(0f));
 			return;
+		}
 
-		IncludeNoCheck(pShape, pBounds);
+		if (split && pMeshes.Length > 0)
+		{
+			childVolumes.AddRange(children.meshes);
+			children.meshes.Clear();
+		}
+
+		vec3 lMin = new vec3(float.PositiveInfinity);
+		vec3 lMax = new vec3(float.NegativeInfinity);
+
+		foreach (IBounded lChild in children)
+		{
+			lMin = min(lMin, lChild.GetBounds().Min);
+			lMax = min(lMax, lChild.GetBounds().Max);
+		}
+
+		bounds = new Bounds(lMin, lMax);
+	}
+
+	public BVHGlobalVolume(VolumeChildArray pChildren)
+	{
+		children = pChildren;
+		ChildCount = children.Count + childVolumes.Count;
+		split = ChildCount <= 2;
+
+		if (ChildCount <= 0)
+		{
+			bounds = new Bounds(new vec3(0f), new vec3(0f));
+			return;
+		}
+
+		if (split && children.meshes.Count > 0)
+		{
+			childVolumes.AddRange(children.meshes);
+			children.meshes.Clear();
+		}
+
+		vec3 lMin = new vec3(float.PositiveInfinity);
+		vec3 lMax = new vec3(float.NegativeInfinity);
+
+		foreach (IBounded lChild in children)
+		{
+			lMin = min(lMin, lChild.GetBounds().Min);
+			lMax = min(lMax, lChild.GetBounds().Max);
+		}
+
+		bounds = new Bounds(lMin, lMax);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void IncludeNoCheck(IRaytracedShape pShape, ShapeBounds pBounds)
+	public Bounds GetBounds()
 	{
-		Min = min(Min, pBounds.min);
-		Max = max(Max, pBounds.max);
-		childShapes.Add(pShape);
-		childBounds.Add(pBounds);
-		++ChildCount;
+		return bounds;
 	}
 
-	public int Split(int pMaxDepth = 1, int pVertexIndexOffset = 0)
+	public void Split(int pMaxDepth = 1)
 	{
-		if (childVolumes.Count > 0)
-		{
-			return pVertexIndexOffset;
-		}
-
-		if (pMaxDepth <= 0 || childShapes.Count <= 2)
-		{
-			return SplitLeafMeshes(pVertexIndexOffset);
-		}
+		if (split || pMaxDepth <= 0 || childVolumes.Count > 0 || children.Count <= 2)
+			return;
 
 		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
 
 		if (!lSplittable)
 		{
-			return SplitLeafMeshes(pVertexIndexOffset);
+			split = true;
+			return;
 		}
 
-		BVHGlobalVolume lChild0 = new BVHGlobalVolume(pBuiltMeshes: builtMeshes);
-		BVHGlobalVolume lChild1 = new BVHGlobalVolume(pBuiltMeshes: builtMeshes);
+		VolumeChildArray lVolume0Children = new VolumeChildArray();
+		VolumeChildArray lVolume1Children = new VolumeChildArray();
 
-		for (int i = 0; i < childShapes.Count; i++)
+		foreach (IBounded lChild in children)
 		{
-			IRaytracedShape lShape = childShapes[i];
-
-			if (all(lessThanEqual(lShape.Bounds.Center, lSplitAxis)))
+			if (all(lessThanEqual(lChild.GetBounds().Center, lSplitAxis)))
 			{
-				lChild0.IncludeNoCheck(lShape, childBounds[i]);
+				lVolume0Children.Add(lChild);
 			}
 			else
 			{
-				lChild1.IncludeNoCheck(lShape, childBounds[i]);
+				lVolume1Children.Add(lChild);
 			}
 		}
 
-		childShapes.Clear();
-		AddSubvolume(lChild0, pMaxDepth - 1, ref pVertexIndexOffset);
-		AddSubvolume(lChild1, pMaxDepth - 1, ref pVertexIndexOffset);
+		children.Clear();
 
-		return pVertexIndexOffset;
+		BVHGlobalVolume lChild0 = AddSubvolumes(lVolume0Children);
+		BVHGlobalVolume lChild1 = AddSubvolumes(lVolume1Children);
+
+		// List<Task> lTasks = new List<Task>();
+
+		if (lChild0 != null)
+		{
+			lChild0.Split(pMaxDepth - 1);
+			// lTasks.Add(Task.Run(() => lChild0.Split(pMaxDepth - 1)));
+		}
+
+		if (lChild1 != null)
+		{
+			lChild1.Split(pMaxDepth - 1);
+			// lTasks.Add(Task.Run(() => lChild1.Split(pMaxDepth - 1)));
+		}
+
+		// Parallel.For(0, lChildren.Count, i => {
+		// 	lChildren[i].Split(pMaxDepth - 1);
+		// });
+		// Task.WaitAll(lTasks.ToArray());
+		split = true;
 	}
 
-	private void AddSubvolume(BVHGlobalVolume pVolume, int pMaxDepth, ref int pVertexIndexOffset)
+	private BVHGlobalVolume AddSubvolumes(VolumeChildArray pVolumeChildren)
 	{
-		if (pVolume.childShapes.Count < 2)
+		if (pVolumeChildren.Count < 2)
 		{
-			if (pVolume.childShapes.Count > 0 && pVolume.childShapes[0] is RaytracedMesh lMesh)
-			{
-				pVertexIndexOffset = SplitMesh(lMesh, pVertexIndexOffset);
-			}
-			else
-			{
-				childShapes.AddRange(pVolume.childShapes);
-			}
+			children.shapes.AddRange(pVolumeChildren.shapes);
+			childVolumes.AddRange(pVolumeChildren.meshes);
+			return null;
 		}
 		else
 		{
-			pVertexIndexOffset = pVolume.Split(pMaxDepth - 1, pVertexIndexOffset);
-			childVolumes.Add(pVolume);
+			BVHGlobalVolume lSubvolume = new BVHGlobalVolume(pVolumeChildren);
+			childVolumes.Add(lSubvolume);
+			return lSubvolume;
 		}
 	}
 
-	private int SplitLeafMeshes(int pVertexIndexOffset)
+	public float GetSplitCost(vec3 pAxis)
 	{
-		for (int i = childShapes.Count - 1; i >= 0; i--)
+		if (split)
 		{
-			if (childShapes[i] is not RaytracedMesh lMesh)
-				continue;
-
-			pVertexIndexOffset = SplitMesh(lMesh, pVertexIndexOffset);
-			childShapes.RemoveAt(i);
+			return float.PositiveInfinity;
 		}
 
-		return pVertexIndexOffset;
-	}
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
 
-	private int SplitMesh(RaytracedMesh pMesh, int pVertexIndexOffset)
-	{
-		BVHMesh lBVHMesh = new BVHMesh(pMesh);
-
-		if (builtMeshes.TryGetValue(pMesh.Mesh, out BVHMesh lBuiltMesh))
+		foreach (IBounded lChild in children)
 		{
-			lBVHMesh.GenerateTriangleBuffer(lBuiltMesh.VertexOffset);
-		}
-		else
-		{
-			int lIndexOffset = pVertexIndexOffset;
-			pVertexIndexOffset = lBVHMesh.GenerateTriangleBuffer(pVertexIndexOffset);
-			lBVHMesh.Split(BVHMesh.MaxDepth, lIndexOffset);
-			builtMeshes.Add(pMesh.Mesh, lBVHMesh);
-		}
-
-		childVolumes.Add(lBVHMesh);
-		return pVertexIndexOffset;
-	}
-
-	// public float GetSplitScore(vec3 pAxis)
-	// {
-	// 	return GetSplitScoreThreadSafe(pAxis, childBounds);
-	// 	// (int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
-	// 	// (int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
-	// 	//
-	// 	// for (int i = 0; i < childShapes.Count; i++)
-	// 	// {
-	// 	// 	IRaytracedShape lShape = childShapes[i];
-	// 	//
-	// 	// 	if (all(lessThanEqual(lShape.Bounds.Center, pAxis)))
-	// 	// 	{
-	// 	// 		++lVolume0.count;
-	// 	// 		lVolume0.min = min(lVolume0.min, lShape.Bounds.min);
-	// 	// 		lVolume0.max = max(lVolume0.max, lShape.Bounds.max);
-	// 	// 	}
-	// 	// 	else
-	// 	// 	{
-	// 	// 		++lVolume1.count;
-	// 	// 		lVolume1.min = min(lVolume1.min, lShape.Bounds.min);
-	// 	// 		lVolume1.max = max(lVolume1.max, lShape.Bounds.max);
-	// 	// 	}
-	// 	// }
-	// 	//
-	// 	// return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
-	// 	// 	+ lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
-	// }
-
-	public float GetSplitScore(vec3 pAxis)
-	{
-		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
-		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
-
-		for (int i = 0; i < childBounds.Count; i++)
-		{
-			ShapeBounds lBounds = childBounds[i];
+			Bounds lBounds = lChild.GetBounds();
 
 			if (all(lessThanEqual(lBounds.Center, pAxis)))
 			{
 				++lVolume0.count;
-				lVolume0.min = min(lVolume0.min, lBounds.min);
-				lVolume0.max = max(lVolume0.max, lBounds.max);
+				lVolume0.min = min(lVolume0.min, lBounds.Min);
+				lVolume0.max = max(lVolume0.max, lBounds.Max);
 			}
 			else
 			{
 				++lVolume1.count;
-				lVolume1.min = min(lVolume1.min, lBounds.min);
-				lVolume1.max = max(lVolume1.max, lBounds.max);
+				lVolume1.min = min(lVolume1.min, lBounds.Min);
+				lVolume1.max = max(lVolume1.max, lBounds.Max);
 			}
 		}
 
-		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
-			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+		Bounds lVolume0Bounds = lVolume0.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume0.min, lVolume0.max);
+
+		Bounds lVolume1Bounds = lVolume1.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume1.min, lVolume1.max);
+
+		return BVHBuilder.GetVolumeCost(lVolume0.count, lVolume0Bounds.Extent * 2f)
+			 + BVHBuilder.GetVolumeCost(lVolume1.count, lVolume1Bounds.Extent * 2f);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -233,8 +202,8 @@ public class BVHGlobalVolume : IBVHVolume
 		return new ShapeData {
 			type = (int)ERaytracedShapeType.BoundingVolume,
 			dataTexelIndex = pTexelIndex,
-			boundMin = Min,
-			boundMax = Max,
+			boundMin = bounds.Min,
+			boundMax = bounds.Max,
 		};
 	}
 
@@ -243,17 +212,17 @@ public class BVHGlobalVolume : IBVHVolume
 	{
 		return new BoundingVolumeData {
 			startIndex = pChildOffset,
-			count = childShapes.Count + childVolumes.Count,
+			count = children.Count + childVolumes.Count,
 		};
 	}
 
 	public virtual string ToString(int pDepth)
 	{
-		string lString = $"{GetType().Name}: {childShapes.Count} shapes & {childVolumes.Count} volumes";
+		string lString = $"{GetType().Name}: {children.Count} shapes & {childVolumes.Count} volumes";
 
-		for (int i = 0; i < childShapes.Count; i++)
+		foreach (IBounded lChild in children)
 		{
-			lString += $"\n{new string(' ', pDepth * 5)}---> {childShapes[i].GetType().Name}";
+			lString += $"\n{new string(' ', pDepth * 5)}---> {lChild.GetType().Name}";
 		}
 
 		for (int i = 0; i < childVolumes.Count; i++)

@@ -1,5 +1,7 @@
-using System.IO;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
@@ -10,7 +12,7 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	public static uint ByteSize => 80;
 
 	public ERaytracedShapeType Type => ERaytracedShapeType.Box;
-	public ShapeBounds Bounds { get; private set; }
+	// public Bounds Bounds { get; private set; }
 
 	public Material[] Materials
 	{
@@ -53,16 +55,16 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 		RemoveFromRaytracer();
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public ShapeData GetShapeData(int pTexelIndex)
-	{
-		return new ShapeData {
-			type = (int)ERaytracedShapeType.Box,
-			dataTexelIndex = pTexelIndex,
-			boundMin = Bounds.min,
-			boundMax = Bounds.max,
-		};
-	}
+	// [MethodImpl(MethodImplOptions.AggressiveInlining)]
+	// public ShapeData GetShapeData(int pTexelIndex)
+	// {
+	// 	return new ShapeData {
+	// 		type = (int)ERaytracedShapeType.Box,
+	// 		dataTexelIndex = pTexelIndex,
+	// 		boundMin = Bounds.min,
+	// 		boundMax = Bounds.max,
+	// 	};
+	// }
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()
@@ -74,5 +76,23 @@ public partial class RaytracedBox : CsgBox3D, IRaytracedShape
 	public virtual void RemoveFromRaytracer()
 	{
 		this.RemoveShapeFromRaytracer(raytracer);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public Bounds GetBounds()
+	{
+		// TO FIX: handle rotation
+		return Bounds.FromExtent(fromVariant(Size * GlobalBasis.Scale) * .5f, fromVariant(GlobalPosition));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	IPureShape IRaytracedShape.AsPureShape(ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial)
+	{
+		return new PureSphere {
+			bounds = GetBounds(),
+			radius = 1f,
+			scale = new vec3(1f),
+			material = pMaterialTable.GetValueNoError(Materials[0] ?? pDefaultMaterial, -1),
+		};
 	}
 }

@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using Astral.Tools;
 using Godot;
@@ -6,40 +7,12 @@ using Godot;
 namespace Astral.Raytracer;
 
 [Tool, GlobalClass]
-public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape
+public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape<TorusData>
 {
 	public const int TORUS_DATA_SIZE = 5;
 	public const float INV_CYLINDER_BYTE_SIZE = 1f / (TORUS_DATA_SIZE * Raytracer.TEXEL_SIZE);
 
 	public ERaytracedShapeType Type => ERaytracedShapeType.Torus;
-
-	public ShapeBounds Bounds
-	{
-		get
-		{
-			mat4 lLocalToWorld = GlobalTransform;
-			float lHalfHeight = OuterRadius - InnerRadius * .5f;
-			vec3 lMin = new vec3(Mathf.Inf);
-			vec3 lMax = new vec3(-Mathf.Inf);
-
-			for (int i = 0; i < 8; i++)
-			{
-				vec3 lCorner = (lLocalToWorld * new vec4(
-					OuterRadius * (i % 2 == 0 ? 1 : -1),
-					lHalfHeight * (i % 4 < 2 ? 1 : -1),
-					OuterRadius * (i < 4 ? 1 : -1),
-					1f
-				)).xyz;
-				lMin = min(lCorner, lMin);
-				lMax = max(lCorner, lMax);
-			}
-
-			return new ShapeBounds {
-				min = lMin,
-				max = lMax,
-			};
-		}
-	}
 
 	public Material[] Materials
 	{
@@ -83,29 +56,6 @@ public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public ShapeData GetShapeData(int pTexelIndex)
-	{
-		ShapeBounds lBounds = Bounds;
-		return new ShapeData {
-			type = (int)ERaytracedShapeType.Cylinder,
-			dataTexelIndex = pTexelIndex,
-			boundMin = lBounds.min,
-			boundMax = lBounds.max,
-		};
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public TorusData GetShaderData(Dictionary<Material, int> pMaterialMap)
-	{
-		return new TorusData {
-			innerRadius = InnerRadius,
-			outerRadius = OuterRadius,
-			transform = GlobalTransform,
-			materialIndex = pMaterialMap.GetValueNoError(Materials[0] ?? raytracer?.DefaultObjectMaterial, -1),
-		};
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public virtual void AddToRaytracer()
 	{
 		this.AddShapeToRaytracer(ref raytracer);
@@ -115,5 +65,45 @@ public partial class RaytracedTorus : CsgTorus3D, IRaytracedShape
 	public virtual void RemoveFromRaytracer()
 	{
 		this.RemoveShapeFromRaytracer(raytracer);
+	}
+
+	public Bounds GetBounds()
+	{
+		mat4 lLocalToWorld = GlobalTransform;
+		float lHalfHeight = (OuterRadius - InnerRadius) * .5f;
+		vec3 lMin = new vec3(Mathf.Inf);
+		vec3 lMax = new vec3(-Mathf.Inf);
+
+		for (int i = 0; i < 8; i++)
+		{
+			vec3 lCorner = (lLocalToWorld * new vec4(
+				OuterRadius * (i % 2 == 0 ? 1 : -1),
+				lHalfHeight * (i % 4 < 2 ? 1 : -1),
+				OuterRadius * (i < 4 ? 1 : -1),
+				1f
+			)).xyz;
+			lMin = min(lCorner, lMin);
+			lMax = max(lCorner, lMax);
+		}
+
+		return new Bounds(lMin, lMax);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	IPureShape IRaytracedShape.AsPureShape(ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial)
+	{
+		return AsPureShape(pMaterialTable, pDefaultMaterial);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public IPureShape<TorusData> AsPureShape(ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial = null)
+	{
+		return new PureTorus {
+			bounds = GetBounds(),
+			transform = GlobalTransform,
+			minorRadius = (OuterRadius - InnerRadius) * .5f,
+			majorRadius = (OuterRadius + InnerRadius) * .5f,
+			material = pMaterialTable.GetValueNoError(Materials[0] ?? pDefaultMaterial, -1),
+		};
 	}
 }

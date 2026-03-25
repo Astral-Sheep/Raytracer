@@ -23,13 +23,13 @@ struct HitInfo
 struct CylinderPrimitive
 {
 	float radius;
-	float height;
+	float half_height;
 };
 
 struct TorusPrimitive
 {
-	float innerRadius;
-	float outerRadius;
+	float minor_radius;
+	float major_radius;
 };
 
 struct TrianglePrimitive
@@ -129,7 +129,7 @@ HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
 		float dist = -(b + sqrt(delta)) / (2.0 * a);
 		vec3 hit_point = ray.origin + ray.dir * dist;
 		
-		if (abs(hit_point.y) < cylinder.height * 0.5)
+		if (abs(hit_point.y) < cylinder.half_height)
 		{
 			hit_info.hit = true;
 			hit_info.dist = dist;
@@ -148,7 +148,7 @@ HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
 	}
 	
 	// Cylinder top and bottom
-	float dist = (ray.origin.y + sign(ray.dir.y) * cylinder.height * 0.5) / -ray.dir.y;
+	float dist = (ray.origin.y + sign(ray.dir.y) * cylinder.half_height) / -ray.dir.y;
 	vec3 hit_point = ray.origin + ray.dir * dist;
 	
 	if (dist < 0.0 || dot(hit_point.xz, hit_point.xz) > cylinder.radius * cylinder.radius)
@@ -169,6 +169,74 @@ HitInfo ray_cylinder(in Ray ray, in CylinderPrimitive cylinder)
 HitInfo ray_torus(in Ray ray, in TorusPrimitive torus)
 {
 	HitInfo hit_info = get_empty_hit();
+	//float sqrR = torus.major_radius * torus.major_radius;
+	//float sqrr = torus.minor_radius * torus.minor_radius;
+	//
+	//// Cylinder bounds test
+	//{
+		//float a = dot(ray.dir.xz, ray.dir.xz);
+		//float b = 2.0 * dot(ray.origin.xz, ray.dir.xz);
+		//float c = dot(ray.origin.xz, ray.origin.xz) - (sqrR - sqrr);
+		//float delta = b * b - 4.0 * a * c;
+		//
+		//if (delta < 0.0)
+		//{
+			//return hit_info;
+		//}
+		//
+		//float sqrt_delta = sqrt(delta);
+		//float y = ray.origin.y + ray.dir.y * (-(b + sqrt_delta) / (2.0 * a));
+		//
+		//if (y > torus.minor_radius)
+		//{
+			//return hit_info;
+		//}
+		//
+		//if (y < -torus.minor_radius)
+		//{
+			//y = ray.origin.y + ray.dir.y * (-(b - sqrt_delta) / (2.0 * a));
+		//}
+		//
+		//if (y < -torus.minor_radius || y > torus.major_radius)
+		//{
+			//return hit_info;
+		//}
+	//}
+	//
+	//// Torus hit test
+	//{
+		//float g = dot(ray.origin, ray.origin) + sqrR - sqrr;
+		//
+		//float b = 4.0 * dot(ray.origin, ray.dir);
+		//float c = 2.0 * (g - 2.0 * sqrR) + b * b * 0.25;
+		//float d = b * g - 2.0 * sqrR * b;
+		//float e = g * g - 4.0 * sqrR * dot(ray.origin, ray.origin);
+		//
+		////float dist = quartic(b, c, d, e);
+		////
+		////if (dist < 0.0 || isnan(dist) || isinf(dist))
+		////{
+			////return hit_info;
+		////}
+		//
+		////float sqrb = b * b;
+		////
+		////float p = c - (3.0 * sqrb) / 8.0;
+		////float q = (b * (sqrb - 4.0 * c)) / 8.0 + d;
+		////float r = (b * (b * (-3.0 * sqrb + 16.0 * c) - 64.0 * d)) / 256.0;
+		////hit_info.hit = true;
+		////hit_info.dist = dist;
+		////hit_info.point = ray.origin + ray.dir * dist;
+	//}
+	//
+	//// Normal computation
+	//{
+		//vec3 D = vec3(hit_info.point.x, 0.0, hit_info.point.z);
+		//hit_info.normal = hit_info.point - normalize(D) * torus.major_radius;
+		//hit_info.flat_normal = hit_info.normal;
+		//hit_info.front_face = true;
+	//}
+	
 	return hit_info;
 }
 

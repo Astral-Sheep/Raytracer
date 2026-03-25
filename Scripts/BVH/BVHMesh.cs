@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Astral.Tools;
 using Godot;
-
-using GArray = Godot.Collections.Array;
 
 namespace Astral.Raytracer;
 
@@ -14,113 +14,110 @@ public class BVHMesh : IBVHVolume
 {
 	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_mesh_depth");
 
-	public vec3 Min { get; }
-	public vec3 Max { get; }
-	public int ChildCount { get; protected init; }
+	public int ChildCount { get; }
 
-	public Mesh Mesh => basis?.Mesh;
-	public VertexData[][] Vertices { get; }
-	public TriangleData[][] Triangles { get; }
-	public int VertexOffset { get; protected set; }
+	public readonly int[] materials = Array.Empty<int>();
+	public readonly List<BVHMeshVolume> children = new List<BVHMeshVolume>();
 
-	public readonly List<BVHMeshVolume> children;
+	public readonly CookData cookData = null;
+	public readonly ImmutableArray<int> surfaceData = ImmutableArray<int>.Empty;
+	public readonly Bounds bounds = new Bounds();
+	public readonly mat4 transform = new mat4(1f);
 
-	protected RaytracedMesh basis;
+	protected bool split = false;
 
-	public BVHMesh(RaytracedMesh pMesh)
+	public BVHMesh(
+		RaytracedMesh pMesh,
+		CookData pCookData,
+		ImmutableDictionary<Material, int> pMaterialTable,
+		Material pDefaultMaterial
+	)
 	{
-		basis = pMesh;
-		children = new List<BVHMeshVolume>();
-
-		if (basis?.Mesh == null)
+		if (pMesh?.Mesh == null || pCookData == null)
+		{
+			split = true;
 			return;
-
-		// TO FIX: store it before multithreading starts
-		Min = basis.Bounds.min;
-		Max = basis.Bounds.max;
-
-		int lSurfaceCount = basis.Mesh.GetSurfaceCount();
-		Vertices = new VertexData[lSurfaceCount][];
-		Triangles = new TriangleData[lSurfaceCount][];
-
-		if (lSurfaceCount > 1)
-		{
-			ChildCount = lSurfaceCount;
-		}
-		else if (lSurfaceCount == 1)
-		{
-			ChildCount = basis.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Index].As<GArray>().Count / 3;
-		}
-		else
-		{
-			ChildCount = 0;
 		}
 
-		Parallel.For(0, lSurfaceCount, i => {
-			GArray lSurface = basis.Mesh.SurfaceGetArrays(i);
+		cookData = pCookData;
+		surfaceData = cookData.meshTable.GetValueOrDefault(pMesh.Mesh, new ImmutableArray<int>());
+		ChildCount = surfaceData.Length > 1 ? surfaceData[^1] - surfaceData[0] : 0;
 
-			GArray lVertexArray = lSurface[(int)Mesh.ArrayType.Vertex].As<GArray>();
-			GArray lNormalArray = lSurface[(int)Mesh.ArrayType.Normal].As<GArray>();
-			GArray lUVArray = lSurface[(int)Mesh.ArrayType.TexUV].As<GArray>();
+		transform = pMesh.GlobalTransform;
+		materials = pMesh.Materials.Select(m => pMaterialTable.GetValueNoError(m ?? pDefaultMaterial, -1)).ToArray();
 
-			Vertices[i] = lVertexArray.AsParallel().Select((v, j) => new VertexData {
-				position = fromVariant(v.As<Vector3>()),
-				normal = j < lNormalArray.Count ? fromVariant(lNormalArray[j].As<Vector3>()) : new vec3(0f),
-				uv = j < lUVArray.Count ? fromVariant(lUVArray[j].As<Vector2>()) : new vec2(0f),
-			}).ToArray();
+		int lSurfaceCount = pMesh.Mesh.GetSurfaceCount();
+
+		if (lSurfaceCount <= 0)
+		{
+			bounds = new Bounds(new vec3(0f), new vec3(0f));
+			return;
+		}
+
+		vec3[] lMinArray = new vec3[lSurfaceCount];
+		vec3[] lMaxArray = new vec3[lSurfaceCount];
+
+		Parallel.For(0, surfaceData.Length - 1, i => {
+			int lStart = surfaceData[i];
+			int lEnd = surfaceData[i + 1];
+			int lCount = lEnd - lStart;
+
+			vec3[] lMins = new vec3[lCount];
+			vec3[] lMaxs = new vec3[lCount];
+
+			Parallel.For(lStart, lEnd, j => {
+				TriangleData lTriangle = cookData.triangleBuffer[j];
+				vec3 lV0 = (transform * new vec4(cookData.vertexBuffer[lTriangle.v0].position, 1f)).xyz;
+				vec3 lV1 = (transform * new vec4(cookData.vertexBuffer[lTriangle.v1].position, 1f)).xyz;
+				vec3 lV2 = (transform * new vec4(cookData.vertexBuffer[lTriangle.v2].position, 1f)).xyz;
+
+				lMins[j - lStart] = min(lV0, min(lV1, lV2));
+				lMaxs[j - lStart] = max(lV0, max(lV1, lV2));
+			});
+
+			vec3 lMin = new vec3(float.PositiveInfinity);
+			vec3 lMax = new vec3(float.NegativeInfinity);
+
+			for (int j = 0; j < lCount; j++)
+			{
+				lMin = min(lMin, lMins[j]);
+				lMax = max(lMax, lMaxs[j]);
+			}
+
+			lMinArray[i] = lMin;
+			lMaxArray[i] = lMax;
 		});
+
+		vec3 lMin = new vec3(float.PositiveInfinity);
+		vec3 lMax = new vec3(float.NegativeInfinity);
+
+		for (int i = 0; i < surfaceData.Length - 1; i++)
+		{
+			lMin = min(lMin, lMinArray[i]);
+			lMax = max(lMax, lMaxArray[i]);
+		}
+
+		bounds = new Bounds(lMin, lMax);
 	}
 
-	public int GenerateTriangleBuffer(int pVertexIndexOffset)
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public Bounds GetBounds()
 	{
-		if (basis?.Mesh == null)
-		{
-			return pVertexIndexOffset;
-		}
-
-		VertexOffset = pVertexIndexOffset;
-
-		for (int i = 0; i < basis.Mesh.GetSurfaceCount(); i++)
-		{
-			GArray lSurface = basis.Mesh.SurfaceGetArrays(i);
-			GArray lTriangles = lSurface[(int)Mesh.ArrayType.Index].As<GArray>();
-			TriangleData[] lSubmeshTriangles = new TriangleData[lTriangles.Count / 3];
-
-			Parallel.For(
-				0,
-				lSubmeshTriangles.Length,
-				j => {
-					lSubmeshTriangles[j] = new TriangleData {
-						v0 = pVertexIndexOffset + lTriangles[j * 3].As<int>(),
-						v1 = pVertexIndexOffset + lTriangles[j * 3 + 1].As<int>(),
-						v2 = pVertexIndexOffset + lTriangles[j * 3 + 2].As<int>(),
-					};
-				}
-			);
-
-			Triangles[i] = lSubmeshTriangles;
-			pVertexIndexOffset += Vertices[i].Length;
-		}
-
-		return pVertexIndexOffset;
+		return bounds;
 	}
 
-	public int Split(int pMaxDepth = -1, int pVertexIndexOffset = 0)
+	public void Split(int pMaxDepth = -1)
 	{
-		if (basis?.Mesh == null || children.Count > 0)
-		{
-			return pVertexIndexOffset;
-		}
+		if (split || cookData == null || children.Count > 0)
+			return;
 
 		pMaxDepth = pMaxDepth < 0 ? MaxDepth : pMaxDepth;
 
 		if (pMaxDepth <= 0)
-		{
-			return pVertexIndexOffset;
-		}
+			return;
 
-		// Split in submeshes
-		if (basis.Mesh.GetSurfaceCount() > 1)
+		// More than one surface
+		if (surfaceData.Length > 2)
 		{
 			SplitInSubmeshes(pMaxDepth);
 		}
@@ -128,230 +125,243 @@ public class BVHMesh : IBVHVolume
 		{
 			SplitInSubvolumes(pMaxDepth, 0);
 		}
-
-		return pVertexIndexOffset;
 	}
 
 	private void SplitInSubmeshes(int pMaxDepth)
 	{
-		int lTriangleCount = 0;
-
-		for (int i = 0; i < basis.Mesh.GetSurfaceCount(); i++)
+		for (int i = 0; i < surfaceData.Length - 1; i++)
 		{
-			if (Triangles[i] is not { Length: > 0 })
+			int lStart = surfaceData[i];
+			int lEnd = surfaceData[i + 1];
+
+			if (surfaceData[i + 1] - surfaceData[i] <= 0)
 				continue;
 
-			BVHSubmesh lSubmesh = new BVHSubmesh(Vertices[i], Triangles[i], basis.GlobalTransform, lTriangleCount, Triangles[i].Length, VertexOffset, lTriangleCount) {
-				material = basis.Materials[i],
-			};
+			BVHSubmesh lSubmesh = new BVHSubmesh(cookData, lStart, lEnd, i, materials[i]);
 			children.Add(lSubmesh);
-			lTriangleCount += Triangles[i].Length;
 		}
 
 		if (children.Count == 1)
 		{
-			SplitInSubvolumes(pMaxDepth, Triangles.IndexOf((children[0] as BVHSubmesh).triangles));
+			// Only child is a basic volume: splitting brings nothing so we just remove the child and mark the mesh as split
+			if (children[0] is not BVHSubmesh lSubmesh)
+			{
+				children.Clear();
+				split = true;
+				return;
+			}
+
+			// Split the surface as if it was the only one in the mesh
+			int lSurfaceIndex = lSubmesh.surfaceIndex;
+			materials[0] = materials[lSurfaceIndex];
+			SplitInSubvolumes(pMaxDepth, lSurfaceIndex);
 		}
 		else
 		{
-			Task.WaitAll(
-				children
-					.AsParallel()
-					.Select(c => Task.Run(() => {
-						c.Split(pMaxDepth - 1, VertexOffset);
-					}))
-					.ToArray()
+			GD.Print("Splitting mesh in submeshes\n");
+			Task.WaitAll(children
+				.AsParallel()
+				.Select(c => Task.Run(() => c.Split(pMaxDepth - 1)))
+				.ToArray()
 			);
+			split = true;
 		}
 	}
 
 	private void SplitInSubvolumes(int pMaxDepth, int pSurfaceIndex)
 	{
-		VertexData[] lVertices = Vertices[pSurfaceIndex];
-		TriangleData[] lTriangles = Triangles[pSurfaceIndex];
-
-		if (lTriangles is not { Length: > 1 })
+		if (ChildCount < 2)
 			return;
 
 		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
 
 		if (!lSplittable)
-			return;
-
-		BVHMeshVolume lChild0 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], basis.GlobalTransform, 0, 0, VertexOffset, 0);
-		BVHMeshVolume lChild1 = new BVHMeshVolume(Vertices[pSurfaceIndex], Triangles[pSurfaceIndex], basis.GlobalTransform, 0, 0, VertexOffset, 0);
-
-		for (int i = 0; i < lTriangles.Length; i++)
 		{
-			TriangleData lTriangle = lTriangles[i];
+			split = true;
+			return;
+		}
+
+		lSplitAxis = BVHBuilder.TransformSplitAxis(lSplitAxis, inverse(transform));
+		int lStart = surfaceData[pSurfaceIndex];
+		int lEnd = surfaceData[pSurfaceIndex + 1];
+
+		// Acts as Volume0's end as well
+		int lVolume1Start = lStart;
+		int lVolume1Count = 0;
+
+		for (int i = lStart; i < lEnd; i++)
+		{
+			TriangleData lTriangle = cookData.triangleBuffer[i];
 			vec3 lCenter = (
-				lVertices[lTriangle.v0 - VertexOffset].position +
-				lVertices[lTriangle.v1 - VertexOffset].position +
-				lVertices[lTriangle.v2 - VertexOffset].position
+				cookData.vertexBuffer[lTriangle.v0].position
+				+ cookData.vertexBuffer[lTriangle.v1].position
+				+ cookData.vertexBuffer[lTriangle.v2].position
 			) / 3f;
 
 			if (all(lessThanEqual(lCenter, lSplitAxis)))
 			{
-				if (lChild1.count > 0)
+				if (lVolume1Count > 0)
 				{
 					// Swap triangles for contiguity
-					TriangleData lSwappedTriangle = lTriangles[lChild1.startIndex];
-					lTriangles[lChild1.startIndex] = lTriangle;
-					lTriangles[i] = lSwappedTriangle;
+					TriangleData lSwappedTriangle = cookData.triangleBuffer[lVolume1Start];
+					cookData.triangleBuffer[lVolume1Start] = lTriangle;
+					cookData.triangleBuffer[i] = lSwappedTriangle;
 				}
 
-				++lChild1.startIndex;
-				lChild0.AddTriangle();
+				++lVolume1Start;
 			}
 			else
 			{
-				lChild1.AddTriangle();
+				++lVolume1Count;
 			}
 		}
 
-		Task.WaitAll(
-			Task.Run(() => lChild0.Split(pMaxDepth - 1)),
-			Task.Run(() => lChild1.Split(pMaxDepth - 1))
-		);
+		// Volume 0 or volume 1 has all triangles, making the split useless
+		if (lVolume1Start == lStart || lVolume1Count == 0)
+		{
+			split = true;
+			return;
+		}
 
-		children.Add(lChild0);
-		children.Add(lChild1);
+		children.Clear();
+		children.AddRange(new BVHMeshVolume[] {
+			new BVHMeshVolume(cookData, lStart, lVolume1Start),
+			new BVHMeshVolume(cookData, lVolume1Start, lVolume1Start + lVolume1Count),
+		});
+		children[0].Split(pMaxDepth - 1);
+		children[1].Split(pMaxDepth - 1);
+		// Task.WaitAll(children.Select(c => Task.Run(() => c.Split(pMaxDepth - 1))).ToArray());
+		split = true;
+	}
+
+	public void SetSplitData(ImmutableArray<BVHMeshVolume> pChildren)
+	{
+		if (split || pChildren is not { Length: > 0 })
+			return;
+
+		children.Clear();
+		children.AddRange(pChildren);
+
+		// Generate new submesh with this mesh's material override
+		for (int i = 0; i < children.Count; i++)
+		{
+			if (children[i] is not BVHSubmesh lSubmesh || lSubmesh.material == (materials.IndexIsValid(i) ? materials[i] : -1))
+				continue;
+
+			BVHSubmesh lLocalSubmesh = new BVHSubmesh(
+				cookData,
+				lSubmesh.start,
+				lSubmesh.end,
+				i,
+				materials.IndexIsValid(i) ? materials[i] : -1
+			);
+			lLocalSubmesh.SetSplitData(lSubmesh.Children);
+			children[i] = lLocalSubmesh;
+		}
+
+		split = true;
 	}
 
 	/// <summary>
 	/// Warning: if there is more than one surface, the result is always -1
 	/// </summary>
-	public float GetSplitScore(vec3 pAxis)
+	public float GetSplitCost(vec3 pAxis)
 	{
-		// If there is more than 1 surface, we don't care about the split axis 
-		if (basis.Mesh.GetSurfaceCount() > 1)
-			return -1f;
-
-		VertexData[] lVertices = Vertices[0];
-		TriangleData[] lTriangles = Triangles[0];
-		pAxis = (inverse(new mat4(basis.Transform)) * new vec4(pAxis, 0f)).xyz;
-
-		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
-		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
-
-		for (int i = 0; i < lTriangles.Length; i++)
+		// If there is more than 1 surface (or no surface at all), we don't care about the split axis 
+		if (surfaceData is not { Length: 2 })
 		{
-			TriangleData lTriangle = lTriangles[i];
-			vec3 lV0 = lVertices[lTriangle.v0 - VertexOffset].position;
-			vec3 lV1 = lVertices[lTriangle.v1 - VertexOffset].position;
-			vec3 lV2 = lVertices[lTriangle.v2 - VertexOffset].position;
+			return float.PositiveInfinity;
+		}
 
-			vec3 lMin = min(lV0, min(lV1, lV2));
-			vec3 lMax = max(lV0, max(lV1, lV2));
-			vec3 lCenter = (lV0 + lV1 + lV2) / 3f;
+		int lStart = surfaceData[0];
+		int lEnd = surfaceData[1];
 
-			if (all(lessThanEqual(lCenter, pAxis)))
+		// To local space
+		pAxis = BVHBuilder.TransformSplitAxis(pAxis, inverse(transform));
+
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
+
+		for (int i = lStart; i < lEnd; i++)
+		{
+			TriangleData lTriangle = cookData.triangleBuffer[i];
+
+			if (all(lessThanEqual(lTriangle.bounds.Center, pAxis)))
 			{
 				++lVolume0.count;
-				lVolume0.min = min(lVolume0.min, lMin);
-				lVolume0.max = max(lVolume0.max, lMax);
+				lVolume0.min = min(lVolume0.min, lTriangle.bounds.Min);
+				lVolume0.max = max(lVolume0.max, lTriangle.bounds.Max);
 			}
 			else
 			{
 				++lVolume1.count;
-				lVolume1.min = min(lVolume1.min, lMin);
-				lVolume1.max = max(lVolume1.max, lMax);
+				lVolume1.min = min(lVolume1.min, lTriangle.bounds.Min);
+				lVolume1.max = max(lVolume1.max, lTriangle.bounds.Max);
 			}
 		}
 
-		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
-			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+		Bounds lVolume0Bounds = lVolume0.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume0.min, lVolume0.max);
+
+		Bounds lVolume1Bounds = lVolume1.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume1.min, lVolume1.max);
+
+		return BVHBuilder.GetVolumeCost(lVolume0.count, lVolume0Bounds.Extent * 2f)
+			 + BVHBuilder.GetVolumeCost(lVolume1.count, lVolume1Bounds.Extent * 2f);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ShapeData GetShaderShape(int pTexelIndex)
 	{
 		return new ShapeData {
-			// To fix
-			type = basis.Mesh.GetSurfaceCount() == 1 && children.Count == 0
-				? (int)ERaytracedShapeType.LeafMesh
-				: (int)ERaytracedShapeType.Mesh,
+			// Leaf if no child volumes
+			type = (int)(children.Count == 0 ? ERaytracedShapeType.LeafMesh : ERaytracedShapeType.Mesh),
 			dataTexelIndex = pTexelIndex,
-			boundMin = Min,
-			boundMax = Max,
+			boundMin = bounds.Min,
+			boundMax = bounds.Max,
 		};
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public MeshData GetShaderData(Dictionary<Mesh, (int start, int count)> pMeshMap, int pChildOffset, int pTriangleOffset, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
+	public MeshData GetShaderData(List<IBounded> pObjects, out bool pCanAddChildren)
 	{
-		if (basis?.Mesh == null)
+		pCanAddChildren = false;
+
+		// Invalid surface data: start index with no end or just no indices
+		if (surfaceData.Length < 2)
 		{
 			return new MeshData {
-				transform = new mat4(1f),
+				transform = transform,
 				startIndex = -1,
 				count = 0,
 				materialIndex = -1,
 			};
 		}
 
-		bool lHasSubmeshes = basis.Mesh.GetSurfaceCount() > 1;
-
-		if (!pMeshMap.TryGetValue(basis.Mesh, out (int start, int count) lMeshIndices))
+		// Leaf mesh
+		if (children.Count <= 0)
 		{
-			bool lHasTriangles = basis.Mesh.GetSurfaceCount() == 1 && children.Count == 0;
-			lHasSubmeshes = lHasSubmeshes && children.Count > 0;
-
-			lMeshIndices = (
-				lHasTriangles ? pTriangleOffset : pChildOffset,
-				lHasSubmeshes
-					? children.Count
-					: lHasTriangles ? Triangles[0].Length : 0
-			);
-			pMeshMap.Add(basis.Mesh, lMeshIndices);
+			return new MeshData {
+				transform = transform,
+				startIndex = surfaceData[0],
+				count = surfaceData[^1] - surfaceData[0],
+				materialIndex = materials[0]
+			};
 		}
-
-		return new MeshData {
-			transform = basis.Transform,
-			startIndex = lMeshIndices.start,
-			count = lMeshIndices.count,
-			materialIndex = lHasSubmeshes ? -2 : pMaterialMap.GetValueNoError(basis.Materials[0] ?? pDefaultMaterial, -1),
-		};
-	}
-
-	public byte[] GetVertexBufferData()
-	{
-		int lVertexByteSize = VertexData.GetTexelSize() * Raytracer.TEXEL_SIZE;
-		List<byte> lVertexBufferData = new List<byte>();
-
-		for (int i = 0; i < Vertices.Length; i++)
+		else
 		{
-			VertexData[] lSubmeshVertices = Vertices[i];
-			byte[] lRawBytes = new byte[lSubmeshVertices.Length * lVertexByteSize];
+			int lChildIndex = pObjects.IndexOf(children[0]);
+			pCanAddChildren = lChildIndex < 0;
 
-			Parallel.For(0, lSubmeshVertices.Length, j => {
-				Array.Copy(lSubmeshVertices[j].GetBytes(), 0, lRawBytes, j * lVertexByteSize, lVertexByteSize);
-			});
-
-			lVertexBufferData.AddRange(lRawBytes);
+			return new MeshData {
+				transform = transform,
+				startIndex = lChildIndex >= 0 ? lChildIndex : pObjects.Count,
+				count = children.Count,
+				// If submeshes, material is -2
+				materialIndex = children[0] is BVHSubmesh ? -2 : materials[0]
+			};
 		}
-
-		return lVertexBufferData.ToArray();
-	}
-
-	public byte[] GetTriangleBufferData()
-	{
-		int lTriangleByteSize = (int)(TriangleData.GetTexelSize() * Raytracer.TEXEL_SIZE);
-		List<byte> lTriangleBufferData = new List<byte>();
-
-		for (int i = 0; i < Triangles.Length; i++)
-		{
-			TriangleData[] lSubmeshTriangles = Triangles[i];
-			byte[] lRawBytes = new byte[lSubmeshTriangles.Length * lTriangleByteSize];
-
-			Parallel.For(0, lSubmeshTriangles.Length, j => {
-				Array.Copy(lSubmeshTriangles[j].GetBytes(), 0, lRawBytes, j * lTriangleByteSize, lTriangleByteSize);
-			});
-
-			lTriangleBufferData.AddRange(lRawBytes);
-		}
-
-		return lTriangleBufferData.ToArray();
 	}
 
 	public virtual string ToString(int pDepth)

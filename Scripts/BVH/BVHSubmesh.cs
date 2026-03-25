@@ -1,35 +1,64 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
-using Astral.Tools;
-using Godot;
 
 namespace Astral.Raytracer;
 
 public class BVHSubmesh : BVHMeshVolume
 {
-	public Material material;
+	public int surfaceIndex;
+	public int material;
 
-	public BVHSubmesh(VertexData[] pVertices, TriangleData[] pTriangles, mat4 pLocalToWorld, int pStart, int pCount, int pVertexOffset, int pTriangleOffset)
-		: base(pVertices, pTriangles, pLocalToWorld, pStart, pCount, pVertexOffset, pTriangleOffset) {}
+	public BVHSubmesh(CookData pCookData, int pStart, int pEnd, int pSurfaceIndex, int pMaterialIndex)
+		: base(pCookData, pStart, pEnd)
+	{
+		surfaceIndex = pSurfaceIndex;
+		material = pMaterialIndex;
+	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetSplitData(ImmutableArray<BVHMeshVolume> pChildren)
+	{
+		if (split)
+			return;
+
+		Children = pChildren;
+		split = true;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public override ShapeData GetShaderShape(int pTexelIndex)
 	{
 		return new ShapeData {
 			type = (int)ERaytracedShapeType.Submesh,
 			dataTexelIndex = pTexelIndex,
-			boundMin = GlobalMin,
-			boundMax = GlobalMax,
+			boundMin = GetBounds().Min,
+			boundMax = GetBounds().Max,
 		};
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public SubmeshData GetShaderData(int pChildOffset, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public override IShaderData GetShaderData(int pChildOffset = 0)
 	{
 		return new SubmeshData {
-			startIndex = children.Count > 0 ? pChildOffset : startIndex,
-			count = children.Count > 0 ? 0 : count,
-			materialIndex = pMaterialMap.GetValueNoError(material ?? pDefaultMaterial, -1),
+			startIndex = Children.Length > 0 ? pChildOffset : start,
+			count = Children.Length > 0 ? 0 : ChildCount,
+			materialIndex = material,
+		};
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public IShaderData GetShaderData(List<IBounded> pObjects, out bool pCanAddChildren)
+	{
+		int lChildIndex = pObjects.IndexOf(Children[0]);
+		pCanAddChildren = lChildIndex < 0;
+
+		return new SubmeshData {
+			startIndex = Children.Length > 0
+				? lChildIndex >= 0 ? lChildIndex : pObjects.Count
+				: start,
+			count = Children.Length > 0 ? 0 : ChildCount,
+			materialIndex = material,
 		};
 	}
 }

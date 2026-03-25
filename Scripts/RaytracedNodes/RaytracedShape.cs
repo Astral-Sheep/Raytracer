@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Immutable;
 using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
 
-public interface IRaytracedShape : IRaytracedObject
+public interface IRaytracedShape : IRaytracedObject, IBounded
 {
 	/// <summary>
 	/// The size of the shape's data in texels
@@ -11,11 +13,22 @@ public interface IRaytracedShape : IRaytracedObject
 	const int SHAPE_DATA_SIZE = 2;
 	const float INV_SHAPE_BYTE_SIZE = 1f / (Raytracer.TEXEL_SIZE * SHAPE_DATA_SIZE);
 
+	static readonly Type[] primitiveTypes = new Type[] {
+		typeof(RaytracedSphere),
+		typeof(RaytracedBox),
+		typeof(RaytracedCylinder),
+		typeof(RaytracedTorus),
+	};
+
 	ERaytracedShapeType Type { get; }
 	Material[] Materials { get; }
-	ShapeBounds Bounds { get; }
 
-	ShapeData GetShapeData(int pTexelIndex);
+	IPureShape AsPureShape(ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial = null);
+}
+
+public interface IRaytracedShape<T> : IRaytracedShape where T : IShaderData
+{
+	new IPureShape<T> AsPureShape(ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial = null);
 }
 
 public enum ERaytracedShapeType : byte
@@ -31,22 +44,11 @@ public enum ERaytracedShapeType : byte
 	/// Not handled currently
 	/// </summary>
 	Box = 7,
-	/// <summary>
-	/// Not handled currently
-	/// </summary>
 	Cylinder = 8,
 	/// <summary>
 	/// Not handled currently
 	/// </summary>
 	Torus = 9,
-}
-
-public struct ShapeBounds
-{
-	public vec3 Center => (min + max) * .5f;
-
-	public vec3 min;
-	public vec3 max;
 }
 
 public static class RaytracedShapeExtensions

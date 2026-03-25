@@ -1,8 +1,13 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Godot;
 
 namespace Astral.Tools;
 
+[DebuggerDisplay(
+	"({this[0, 0]}, {this[1, 0]})\n" +
+	"({this[0, 1]}, {this[1, 1]})"
+)]
 [InlineArray(2)]
 public struct mat2
 {

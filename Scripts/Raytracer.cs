@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Godot;
@@ -242,7 +243,7 @@ public partial class Raytracer : PostProcessLayer
 
 			if (updateRequested || (updateAlways && shapes.Count > 0))
 			{
-				Dictionary<Material, int> lMaterialMap = UpdateMaterials();
+				ImmutableDictionary<Material, int> lMaterialMap = UpdateMaterials();
 				UpdateBVH(lMaterialMap);
 				updateRequested = false;
 			}
@@ -257,7 +258,7 @@ public partial class Raytracer : PostProcessLayer
 		}
 	}
 
-	protected void UpdateBVH(Dictionary<Material, int> pMaterialMap)
+	protected void UpdateBVH(ImmutableDictionary<Material, int> pMaterialMap)
 	{
 		BVHResult lResult = BVHBuilder.BuildBVH(
 			shapes.Where(s => s is { Trace: true }).ToArray(),
@@ -281,7 +282,7 @@ public partial class Raytracer : PostProcessLayer
 		triangleBuffer.SendData(material);
 	}
 
-	protected Dictionary<Material, int> UpdateMaterials()
+	protected ImmutableDictionary<Material, int> UpdateMaterials()
 	{
 		Dictionary<Material, int> lMaterialMap = new Dictionary<Material, int>();
 		Dictionary<Texture2D, int> lTextureMap = new Dictionary<Texture2D, int>();
@@ -352,7 +353,7 @@ public partial class Raytracer : PostProcessLayer
 
 		materialBuffer.SendData(material);
 		textureBuffer.SendData(material);
-		return lMaterialMap;
+		return lMaterialMap.ToImmutableDictionary();
 	}
 
 	protected void UpdateSuns()

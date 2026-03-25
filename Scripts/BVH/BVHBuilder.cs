@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -13,47 +15,42 @@ public static class BVHBuilder
 	public static int MaxDepth => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_global_depth");
 	public static int SplitTests => GodotUtility.GetSetting<int>("rendering/pathtracing/bvh_split_tests");
 
-	public static IBVHVolume GenerateBVH(IRaytracedShape[] pShapes)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial)
 	{
-		if (pShapes is not { Length: > 0 })
-		{
-			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] No shapes to order. Returning empty hierarchy");
-			return null;
-		}
-
-		BVHGlobalVolume lRoot = new BVHGlobalVolume(pShapes);
-		lRoot.Split(MaxDepth);
-
-		if (lRoot.childVolumes.Count == 1 && lRoot.childShapes.Count <= 0)
-		{
-			return lRoot.childVolumes[0];
-		}
-
-		return lRoot;
+		(IBVHVolume lRoot, CookData lData) = GenerateBVH(pShapes, pMaterialTable, pDefaultMaterial);
+		return BuildBVH(lRoot, lData);
 	}
 
-	public static BVHResult BuildBVH(IBVHVolume pRoot, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
+	public static BVHResult BuildBVH(IBVHVolume pRoot, CookData pMeshCookData)
 	{
 		if (pRoot == null)
 		{
 			return BVHResult.Empty;
 		}
 
+		GD.Print("BVH build started");
+
 		switch (pRoot)
 		{
 			case BVHGlobalVolume lVolume:
 			{
-				if (lVolume.childVolumes.Count > 0 || lVolume.childShapes.Count != 1)
+				if (lVolume.childVolumes.Count > 0 || lVolume.children.Count != 1)
 					break;
 
+				if (lVolume.children.meshes.Count > 0)
+				{
+					pRoot = lVolume.children.meshes[0];
+					break;
+				}
+
 				GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] Only 1 shape ordered. Returning shape without hierarchy");
-				IRaytracedShape lShape = lVolume.childShapes[0];
+				IPureShape lShape = lVolume.children.shapes[0];
+				(ShapeData shape, IShaderData data) = lShape.GetShaderData(0);
+
 				return new BVHResult {
-					shapeBuffer = lShape.GetShapeData(0).GetBytes(),
-					dataBuffer = lShape switch {
-						RaytracedSphere lSphere => lSphere.GetShaderData(pMaterialMap).GetBytes(),
-						_ => Array.Empty<byte>(),
-					},
+					shapeBuffer = shape.GetBytes(),
+					dataBuffer = data.GetBytes(),
 					vertexBuffer = Array.Empty<byte>(),
 					triangleBuffer = Array.Empty<byte>(),
 				};
@@ -68,19 +65,15 @@ public static class BVHBuilder
 		// Buffers
 		List<byte> lShapes = new List<byte>();
 		List<byte> lData = new List<byte>();
-		List<byte> lVertices = new List<byte>();
-		List<byte> lTriangles = new List<byte>();
 
 		// Hierarchy
-		List<object> lObjectsToAdd = new List<object>();
-		Dictionary<Mesh, (int start, int count)> lBuiltMeshes = new Dictionary<Mesh, (int start, int count)>();
+		List<IBounded> lObjectsToAdd = new List<IBounded>();
 		lObjectsToAdd.Add(pRoot);
-
 		int lCurrentObject = 0;
 
 		while (lCurrentObject < lObjectsToAdd.Count)
 		{
-			object lObject = lObjectsToAdd[lCurrentObject];
+			IBounded lObject = lObjectsToAdd[lCurrentObject];
 
 			switch (lObject)
 			{
@@ -88,66 +81,46 @@ public static class BVHBuilder
 				{
 					lShapes.AddRange(lGlobalVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
 					lData.AddRange(lGlobalVolume.GetShaderData(lObjectsToAdd.Count).GetBytes());
-					lObjectsToAdd.AddRange(lGlobalVolume.childShapes);
+					lObjectsToAdd.AddRange(lGlobalVolume.children.shapes);
+					lObjectsToAdd.AddRange(lGlobalVolume.children.meshes);
 					lObjectsToAdd.AddRange(lGlobalVolume.childVolumes);
 					break;
 				}
 				case BVHMesh lMesh:
 				{
-					if (!lBuiltMeshes.ContainsKey(lMesh.Mesh))
+					lShapes.AddRange(lMesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
+					lData.AddRange(lMesh.GetShaderData(lObjectsToAdd, out bool lCanAddChildren).GetBytes());
+
+					if (lCanAddChildren)
 					{
-						lVertices.AddRange(lMesh.GetVertexBufferData());
-						lTriangles.AddRange(lMesh.GetTriangleBufferData());
+						lObjectsToAdd.AddRange(lMesh.children);
 					}
 
-					lShapes.AddRange(lMesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lMesh.GetShaderData(
-						lBuiltMeshes,
-						lObjectsToAdd.Count,
-						(int)(lTriangles.Count / TriangleData.GetTexelSize()),
-						pMaterialMap,
-						pDefaultMaterial
-					).GetBytes());
-					lObjectsToAdd.AddRange(lMesh.children);
 					break;
 				}
 				case BVHSubmesh lSubmesh:
 				{
 					lShapes.AddRange(lSubmesh.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-					lData.AddRange(lSubmesh.GetShaderData(lObjectsToAdd.Count, pMaterialMap, pDefaultMaterial).GetBytes());
-					lObjectsToAdd.AddRange(lSubmesh.children);
+					lData.AddRange(lSubmesh.GetShaderData(lObjectsToAdd, out bool lCanAddChildren).GetBytes());
+
+					if (lCanAddChildren)
+					{
+						lObjectsToAdd.AddRange(lSubmesh.Children);
+					}
 					break;
 				}
 				case BVHMeshVolume lMeshVolume:
 				{
 					lShapes.AddRange(lMeshVolume.GetShaderShape(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
 					lData.AddRange(lMeshVolume.GetShaderData(lObjectsToAdd.Count).GetBytes());
-					lObjectsToAdd.AddRange(lMeshVolume.children);
+					lObjectsToAdd.AddRange(lMeshVolume.Children);
 					break;
 				}
-				case IRaytracedShape lShape:
+				case IPureShape lShape:
 				{
-					lShapes.AddRange(lShape.GetShapeData(lData.Count / Raytracer.TEXEL_SIZE).GetBytes());
-
-					switch (lShape)
-					{
-						case RaytracedSphere lSphere:
-							lData.AddRange(lSphere.GetShaderData(pMaterialMap).GetBytes());
-							break;
-						case RaytracedCylinder lCylinder:
-							lData.AddRange(lCylinder.GetShaderData(pMaterialMap).GetBytes());
-							break;
-						case RaytracedTorus lTorus:
-							lData.AddRange(lTorus.GetShaderData(pMaterialMap).GetBytes());
-							break;
-						case RaytracedMesh:
-							GD.PushError("Raytraced mesh handled as shape instead of volume");
-							break;
-						default:
-							GD.PushError($"Unhandled raytraced shape found in hierarchy: {lShape.GetType().Name}");
-							break;
-					}
-
+					(ShapeData shape, IShaderData data) = lShape.GetShaderData(lData.Count / Raytracer.TEXEL_SIZE);
+					lShapes.AddRange(shape.GetBytes());
+					lData.AddRange(data.GetBytes());
 					break;
 				}
 				default:
@@ -158,109 +131,214 @@ public static class BVHBuilder
 			++lCurrentObject;
 		}
 
+		(byte[] lVertexBuffer, byte[] lTriangleBuffer) = pMeshCookData.Build();
+
 		return new BVHResult {
 			shapeBuffer = lShapes.ToArray(),
 			dataBuffer = lData.ToArray(),
-			vertexBuffer = lVertices.ToArray(),
-			triangleBuffer = lTriangles.ToArray(),
+			vertexBuffer = lVertexBuffer,
+			triangleBuffer = lTriangleBuffer,
 		};
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static BVHResult BuildBVH(IRaytracedShape[] pShapes, Dictionary<Material, int> pMaterialMap, Material pDefaultMaterial)
+	public static (IBVHVolume root, CookData data) GenerateBVH(IRaytracedShape[] pShapes, ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial)
 	{
-		return BuildBVH(GenerateBVH(pShapes), pMaterialMap, pDefaultMaterial);
+		if (pShapes is not { Length: > 0 })
+		{
+			GD.PrintRich("[color=#34EBEB][lb]BVH[rb][/color] No shapes to order. Returning empty hierarchy");
+			return (null, null);
+		}
+
+		GD.Print("BVH generation started");
+		IPureShape[] lPrimitives = pShapes
+			.Where(s => IRaytracedShape.primitiveTypes.Contains(s.GetType()))
+			.Select(s => s.AsPureShape(pMaterialTable, pDefaultMaterial))
+			.ToArray();
+		(BVHMesh[] lMeshes, CookData lCookData) = GenerateMeshes(
+			pShapes.OfType<RaytracedMesh>().ToArray(),
+			pMaterialTable,
+			pDefaultMaterial
+		);
+
+		BVHGlobalVolume lRoot = new BVHGlobalVolume(lPrimitives, lMeshes);
+		lRoot.Split(MaxDepth);
+
+		if (lRoot.childVolumes.Count == 1 && lRoot.children.Count <= 0)
+		{
+			return (lRoot.childVolumes[0], lCookData);
+		}
+
+		return (lRoot, lCookData);
+	}
+
+	private static (BVHMesh[], CookData) GenerateMeshes(RaytracedMesh[] pMeshes, ImmutableDictionary<Material, int> pMaterialTable, Material pDefaultMaterial)
+	{
+		Dictionary<Mesh, RaytracedMesh> lModelsTable = new Dictionary<Mesh, RaytracedMesh>();
+		List<RaytracedMesh> lInstances = new List<RaytracedMesh>();
+
+		for (int i = 0; i < pMeshes.Length; i++)
+		{
+			RaytracedMesh lMesh = pMeshes[i];
+
+			if (lMesh?.Mesh == null)
+				continue;
+
+			if (lModelsTable.TryAdd(lMesh.Mesh, lMesh))
+				continue;
+
+			lInstances.Add(lMesh);
+		}
+
+		RaytracedMesh[] lModels = lModelsTable.Values.ToArray();
+		CookData lCookData = CookMeshes(lModels);
+		Dictionary<Mesh, ImmutableArray<BVHMeshVolume>> lSplitData = GenerateMeshModels(
+			lModels,
+			lCookData,
+			pMaterialTable,
+			pDefaultMaterial,
+			out BVHMesh[] lBuiltModels
+		);
+
+		BVHMesh[] lBuiltMeshes = new BVHMesh[lBuiltModels.Length + lInstances.Count];
+		Array.Copy(lBuiltModels, 0, lBuiltMeshes, 0, lBuiltModels.Length);
+
+		for (int i = lBuiltModels.Length; i < lBuiltMeshes.Length; i++)
+		{
+			RaytracedMesh lMesh = lInstances[i - lBuiltModels.Length];
+			BVHMesh lBuiltMesh = new BVHMesh(lMesh, lCookData, pMaterialTable, pDefaultMaterial);
+			lBuiltMesh.SetSplitData(lSplitData[lMesh.Mesh]);
+			lBuiltMeshes[i] = lBuiltMesh;
+		}
+
+		return (lBuiltMeshes, lCookData);
+	}
+
+	/// <summary>
+	/// /!\ Warning /!\<br/>
+	/// This method is used to build all <see cref="Mesh"/> resources into the BVH, therefore it is expected
+	/// to not have 2 <see cref="RaytracedMesh"/> with the same <see cref="Mesh"/> reference to avoid duplicates.<br/>
+	/// The verification is expected to be done outside of this method.
+	/// </summary>
+	private static Dictionary<Mesh, ImmutableArray<BVHMeshVolume>> GenerateMeshModels(
+		RaytracedMesh[] pMeshes,
+		CookData pCookData,
+		ImmutableDictionary<Material, int> pMaterialTable,
+		Material pDefaultMaterial,
+		out BVHMesh[] pBuiltMeshes
+	)
+	{
+		BVHMesh[] lBuiltMeshes = new BVHMesh[pMeshes.Length];
+
+		for (int i = 0; i < pMeshes.Length; i++)
+		{
+			lBuiltMeshes[i] = new BVHMesh(pMeshes[i], pCookData, pMaterialTable, pDefaultMaterial);
+		}
+
+		Parallel.For(0, lBuiltMeshes.Length, i => {
+			lBuiltMeshes[i].Split();
+		});
+
+		Dictionary<Mesh, ImmutableArray<BVHMeshVolume>> lSplitData = new Dictionary<Mesh, ImmutableArray<BVHMeshVolume>>(lBuiltMeshes.Length);
+
+		for (int i = 0; i < lBuiltMeshes.Length; i++)
+		{
+			lSplitData.Add(pMeshes[i].Mesh, lBuiltMeshes[i].children.ToImmutableArray());
+		}
+
+		pBuiltMeshes = lBuiltMeshes;
+		return lSplitData;
+	}
+
+	private static CookData CookMeshes(RaytracedMesh[] pMeshes)
+	{
+		Dictionary<Mesh, int[]> lCookedMeshes = new Dictionary<Mesh, int[]>();
+		List<VertexData> lVertexBuffer = new List<VertexData>();
+		List<TriangleData> lTriangleBuffer = new List<TriangleData>();
+
+		for (int i = 0; i < pMeshes.Length; i++)
+		{
+			RaytracedMesh lMesh = pMeshes[i];
+
+			if (lMesh?.Mesh == null || lCookedMeshes.ContainsKey(lMesh.Mesh))
+				continue;
+
+			(TriangleData[] lTriangleData, int[] lSurfaceIndices) = lMesh.GetTriangles(lVertexBuffer.Count, lTriangleBuffer.Count);
+
+			lVertexBuffer.AddRange(lMesh.GetVertices());
+			lTriangleBuffer.AddRange(lTriangleData);
+			lCookedMeshes.Add(lMesh.Mesh, lSurfaceIndices);
+		}
+
+		return new CookData(lVertexBuffer.ToArray(), lTriangleBuffer.ToArray(), lCookedMeshes);
 	}
 
 	public static (bool splittable, vec3 axis) GetSplitAxis(IBVHVolume pVolume)
 	{
 		int lSplitTests = SplitTests;
 
-		vec3 lStep = (pVolume.Max - pVolume.Min) / (lSplitTests + 1f);
-		vec3 lStart = pVolume.Min + lStep;
-		vec3 lSize = abs(pVolume.Max - pVolume.Min);
+		Bounds lVolumeBounds = pVolume.GetBounds();
+		vec3 lSize = lVolumeBounds.Extent * 2f;
+		vec3 lStep = lSize / (lSplitTests + 1f);
+		vec3 lStart = lVolumeBounds.Min + lStep;
 
-		// vec3 lBestAxis = new vec3(float.NaN);
-		float lBestScore = lSize.x * lSize.y * lSize.z * pVolume.ChildCount;
+		float lVolumeCost = GetVolumeCost(pVolume.ChildCount, lSize);
 
-		// DateTime lTimeStart = DateTime.UtcNow;
 		Task<(float, vec3)[]> lTests = Task.WhenAll(
 			Task.Run(() => {
-				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
+				(float cost, vec3 axis)[] lCosts = new (float, vec3)[lSplitTests];
 
 				Parallel.For(0, lSplitTests, i => {
-					vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
-					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+					vec3 lAxis = new vec3(lStart.x + lStep.x * i, float.PositiveInfinity, float.PositiveInfinity);
+					lCosts[i] = (pVolume.GetSplitCost(lAxis), lAxis);
 				});
-				return lScores.AsParallel().MinBy(s => s.score);
+				return lCosts.AsParallel().MinBy(s => s.cost);
 			}),
 			Task.Run(() => {
-				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
+				(float cost, vec3 axis)[] lCosts = new (float, vec3)[lSplitTests];
 
 				Parallel.For(0, lSplitTests, i => {
-					vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
-					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+					vec3 lAxis = new vec3(float.PositiveInfinity, lStart.y + lStep.y * i, float.PositiveInfinity);
+					lCosts[i] = (pVolume.GetSplitCost(lAxis), lAxis);
 				});
-				return lScores.AsParallel().MinBy(s => s.score);
+				return lCosts.AsParallel().MinBy(s => s.cost);
 			}),
 			Task.Run(() => {
-				(float score, vec3 axis)[] lScores = new (float, vec3)[lSplitTests];
+				(float cost, vec3 axis)[] lCosts = new (float, vec3)[lSplitTests];
 
 				Parallel.For(0, lSplitTests, i => {
-					vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
-					lScores[i] = (pVolume.GetSplitScore(lAxis), lAxis);
+					vec3 lAxis = new vec3(float.PositiveInfinity, float.PositiveInfinity, lStart.z + lStep.z * i);
+					lCosts[i] = (pVolume.GetSplitCost(lAxis), lAxis);
 				});
-				return lScores.AsParallel().MinBy(s => s.score);
+				return lCosts.AsParallel().MinBy(s => s.cost);
 			})
 		);
 		lTests.Wait();
-		(float score, vec3 axis) = lTests.Result.AsParallel().MinBy(s => s.Item1);
-		return (score < lBestScore, axis);
-		// TimeSpan lMultiDuration = DateTime.UtcNow - lTimeStart;
-		//
-		// lTimeStart = DateTime.UtcNow;
-		// for (int i = 0; i < lSplitTests; i++)
-		// {
-		// 	vec3 lAxis = lStart + new vec3(lStep.x * i, Mathf.Inf, Mathf.Inf);
-		// 	float lScore = pVolume.GetSplitScore(lAxis);
-		//
-		// 	if (lScore < lBestScore)
-		// 	{
-		// 		lBestAxis = lAxis;
-		// 		lBestScore = lScore;
-		// 	}
-		// }
-		//
-		// for (int i = 0; i < lSplitTests; i++)
-		// {
-		// 	vec3 lAxis = lStart + new vec3(Mathf.Inf, lStep.y * i, Mathf.Inf);
-		// 	float lScore = pVolume.GetSplitScore(lAxis);
-		//
-		// 	if (lScore < lBestScore)
-		// 	{
-		// 		lBestAxis = lAxis;
-		// 		lBestScore = lScore;
-		// 	}
-		// }
-		//
-		// for (int i = 0; i < lSplitTests; i++)
-		// {
-		// 	vec3 lAxis = lStart + new vec3(Mathf.Inf, Mathf.Inf, lStep.z * i);
-		// 	float lScore = pVolume.GetSplitScore(lAxis);
-		//
-		// 	if (lScore < lBestScore)
-		// 	{
-		// 		lBestAxis = lAxis;
-		// 		lBestScore = lScore;
-		// 	}
-		// }
-		// TimeSpan lSingleDuration = DateTime.UtcNow - lTimeStart;
 
-		// GD.PrintRich(
-		// 	$"[color=#{(lSingleDuration < lMultiDuration ? "33e88e" : "eb4034")}]Main thread score: {lBestScore} with axis ({lBestAxis.x}, {lBestAxis.y}, {lBestAxis.z}) in {lSingleDuration}[/color]\n" +
-		// 	$"[color=#{(lSingleDuration >= lMultiDuration ? "33e88e" : "eb4034")}]Multithreaded score: {score} with axis ({axis.x}, {axis.y}, {axis.z}) in {lMultiDuration}[/color]\n"
-		// );
-		// return (score < lBestScore || !float.IsNaN(lBestAxis.x), score < lBestScore ? axis : lBestAxis);
-		// return (!float.IsNaN(lBestAxis.x), lBestAxis);
+		(float cost, vec3 axis) = lTests.Result.AsParallel().MinBy(s => s.Item1);
+		return (cost < lVolumeCost, axis);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public static vec3 TransformSplitAxis(vec3 pSplitAxis, mat4 pTransform)
+	{
+		vec3 lSanitizedAxis = new vec3(
+			float.IsFinite(pSplitAxis.x) ? pSplitAxis.x : pTransform[3, 0],
+			float.IsFinite(pSplitAxis.y) ? pSplitAxis.y : pTransform[3, 1],
+			float.IsFinite(pSplitAxis.z) ? pSplitAxis.z : pTransform[3, 2]
+		);
+		lSanitizedAxis = (pTransform * new vec4(lSanitizedAxis, 1f)).xyz;
+
+		return new vec3(
+			float.IsFinite(pSplitAxis.x) ? lSanitizedAxis.x : float.PositiveInfinity,
+			float.IsFinite(pSplitAxis.y) ? lSanitizedAxis.y : float.PositiveInfinity,
+			float.IsFinite(pSplitAxis.z) ? lSanitizedAxis.z : float.PositiveInfinity
+		);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public static float GetVolumeCost(int pChildCount, vec3 pSize)
+	{
+		// return pSize.x * pSize.y * pSize.z * pChildCount;
+		return (pSize.x * (pSize.y + pSize.z) + pSize.y * pSize.z) * pChildCount;
 	}
 }

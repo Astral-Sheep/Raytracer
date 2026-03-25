@@ -1,195 +1,212 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Astral.Tools;
 using Godot;
 
 namespace Astral.Raytracer;
 
 public class BVHMeshVolume : IBVHVolume
 {
-	public vec3 Min { get; private set; }
-	public vec3 Max { get; private set; }
+	public int ChildCount { get; }
+	public ImmutableArray<BVHMeshVolume> Children { get; protected set; } = ImmutableArray<BVHMeshVolume>.Empty;
 
-	public vec3 GlobalMin => (localToWorld * new vec4(Min, 1f)).xyz;
-	public vec3 GlobalMax => (localToWorld * new vec4(Max, 1f)).xyz;
+	public readonly CookData cookData;
+	public readonly int start;
+	public readonly int end;
+	public readonly Bounds bounds;
 
-	public int ChildCount { get; private set; }
+	protected bool split = false;
 
-	public readonly List<BVHMeshVolume> children = new List<BVHMeshVolume>();
-
-	// References to BVHMesh data arrays
-	public VertexData[] vertices;
-	public TriangleData[] triangles;
-
-	public int startIndex;
-	public int count;
-	public int vertexOffset;
-	public int triangleOffset;
-	public mat4 localToWorld;
-
-	public BVHMeshVolume(VertexData[] pVertices, TriangleData[] pTriangles, mat4 pLocalToWorld, int pStart, int pCount, int pVertexOffset, int pTriangleOffset)
+	public BVHMeshVolume(CookData pCookData, int pStart, int pEnd)
 	{
-		vertices = pVertices;
-		triangles = pTriangles;
-		localToWorld = pLocalToWorld;
-
-		startIndex = pStart;
-		count = pCount;
-		vertexOffset = pVertexOffset;
-		triangleOffset = pTriangleOffset;
-
-		ChildCount = count;
-
-		for (int i = startIndex; i < startIndex + count; i++)
+		if (pCookData == null)
 		{
-			TriangleData lTriangle = triangles[i - triangleOffset];
-			vec3 v0 = vertices[lTriangle.v0 - vertexOffset].position;
-			vec3 v1 = vertices[lTriangle.v1 - vertexOffset].position;
-			vec3 v2 = vertices[lTriangle.v2 - vertexOffset].position;
-
-			Min = min(min(min(v0, v1), v2), Min);
-			Max = max(max(max(v0, v1), v2), Max);
+			split = true;
+			return;
 		}
-	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void AddTriangle()
-	{
-		++count;
-		++ChildCount;
+		cookData = pCookData;
+		start = pStart;
+		end = pEnd;
+		ChildCount = end - start;
 
-		TriangleData lTriangle = triangles[startIndex + count - 1 - triangleOffset];
-		vec3 v0 = vertices[lTriangle.v0 - vertexOffset].position;
-		vec3 v1 = vertices[lTriangle.v1 - vertexOffset].position;
-		vec3 v2 = vertices[lTriangle.v2 - vertexOffset].position;
-
-		Min = min(min(min(v0, v1), v2), Min);
-		Max = max(max(max(v0, v1), v2), Max);
-	}
-
-	public virtual int Split(int pMaxDepth = 1, int pVertexIndexOffset = 0)
-	{
-		if (pMaxDepth <= 0 || count <= 1 || triangles is not { Length: > 0 } || startIndex >= triangles.Length)
+		if (ChildCount <= 0)
 		{
-			return vertexOffset;
+			bounds = new Bounds(new vec3(0f), new vec3(0f));
+			return;
+		}
+
+		vec3[] lMins = new vec3[ChildCount];
+		vec3[] lMaxs = new vec3[ChildCount];
+
+		Parallel.For(start, end, j => {
+			TriangleData lTriangle = cookData.triangleBuffer[j];
+			vec3 lV0 = cookData.vertexBuffer[lTriangle.v0].position;
+			vec3 lV1 = cookData.vertexBuffer[lTriangle.v1].position;
+			vec3 lV2 = cookData.vertexBuffer[lTriangle.v2].position;
+
+			lMins[j - start] = min(lV0, min(lV1, lV2));
+			lMaxs[j - start] = max(lV0, max(lV1, lV2));
+		});
+
+		vec3 lMin = new vec3(float.PositiveInfinity);
+		vec3 lMax = new vec3(float.NegativeInfinity);
+
+		for (int j = 0; j < ChildCount; j++)
+		{
+			lMin = min(lMin, lMins[j]);
+			lMax = max(lMax, lMaxs[j]);
+		}
+
+		bounds = new Bounds(lMin, lMax);
+	}
+
+	public Bounds GetBounds()
+	{
+		return bounds;
+	}
+
+	public void Split(int pMaxDepth = 1)
+	{
+		if (split || pMaxDepth <= 0)
+			return;
+
+		if (start < 0 || ChildCount < 2)
+		{
+			split = true;
+			return;
 		}
 
 		(bool lSplittable, vec3 lSplitAxis) = BVHBuilder.GetSplitAxis(this);
 
 		if (!lSplittable)
 		{
-			return pVertexIndexOffset;
+			// GD.Print($"Subvolume at depth {pMaxDepth} is not splittable. Returning method\n");
+			split = true;
+			return;
 		}
 
-		BVHMeshVolume lChild0 = new BVHMeshVolume(vertices, triangles, localToWorld, startIndex, 0, vertexOffset, triangleOffset);
-		BVHMeshVolume lChild1 = new BVHMeshVolume(vertices, triangles, localToWorld, startIndex, 0, vertexOffset, triangleOffset);
+		// GD.Print($"Splitting subvolume at depth {pMaxDepth} in subvolumes with axis {lSplitAxis}");
+		// Acts as Volume0's end as well
+		int lVolume1Start = start;
+		int lVolume1Count = 0;
 
-		for (int i = startIndex; i < startIndex + count; i++)
+		for (int i = start; i < end; i++)
 		{
-			TriangleData lTriangle = triangles[i - triangleOffset];
+			TriangleData lTriangle = cookData.triangleBuffer[i];
 			vec3 lCenter = (
-				vertices[lTriangle.v0 - vertexOffset].position +
-				vertices[lTriangle.v1 - vertexOffset].position +
-				vertices[lTriangle.v2 - vertexOffset].position
+				cookData.vertexBuffer[lTriangle.v0].position
+				+ cookData.vertexBuffer[lTriangle.v1].position
+				+ cookData.vertexBuffer[lTriangle.v2].position
 			) / 3f;
 
 			if (all(lessThanEqual(lCenter, lSplitAxis)))
 			{
-				if (lChild1.count > 0)
+				if (lVolume1Count > 0)
 				{
 					// Swap triangles for contiguity
-					TriangleData lSwappedTriangle = triangles[lChild1.startIndex - triangleOffset];
-					triangles[lChild1.startIndex - triangleOffset] = lTriangle;
-					triangles[i - triangleOffset] = lSwappedTriangle;
+					TriangleData lSwappedTriangle = cookData.triangleBuffer[lVolume1Start];
+					cookData.triangleBuffer[lVolume1Start] = lTriangle;
+					cookData.triangleBuffer[i] = lSwappedTriangle;
 				}
 
-				++lChild1.startIndex;
-				lChild0.AddTriangle();
+				++lVolume1Start;
 			}
 			else
 			{
-				lChild1.AddTriangle();
+				++lVolume1Count;
 			}
 		}
 
-		Task.WaitAll(
-			Task.Run(() => lChild0.Split(pMaxDepth - 1)),
-			Task.Run(() => lChild1.Split(pMaxDepth - 1))
+		// Volume 0 or volume 1 has all triangles, making the split useless
+		if (lVolume1Start == start || lVolume1Count == 0)
+		{
+			// GD.Print("Splitting cancelled: all triangles where put in the same subvolume\n");
+			split = true;
+			return;
+		}
+
+		Children = ImmutableArray.Create(
+			new BVHMeshVolume(cookData, start, lVolume1Start),
+			new BVHMeshVolume(cookData, lVolume1Start, lVolume1Start + lVolume1Count)
 		);
-
-		children.Add(lChild0);
-		children.Add(lChild1);
-
-		return pVertexIndexOffset;
+		Children[0].Split(pMaxDepth - 1);
+		Children[1].Split(pMaxDepth - 1);
+		// Task.WaitAll(Children.Select(c => Task.Run(() => c.Split(pMaxDepth - 1))).ToArray());
+		split = true;
 	}
 
-	public float GetSplitScore(vec3 pAxis)
+	public float GetSplitCost(vec3 pAxis)
 	{
-		if (count < 2)
-			return -1f;
-
-		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(0f), new vec3(0f));
-		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(0f), new vec3(0f));
-
-		for (int i = 0; i < triangles.Length; i++)
+		if (split)
 		{
-			TriangleData lTriangle = triangles[i - triangleOffset];
-			vec3 lV0 = vertices[lTriangle.v0 - vertexOffset].position;
-			vec3 lV1 = vertices[lTriangle.v1 - vertexOffset].position;
-			vec3 lV2 = vertices[lTriangle.v2 - vertexOffset].position;
+			return float.PositiveInfinity;
+		}
 
-			vec3 lMin = min(lV0, min(lV1, lV2));
-			vec3 lMax = max(lV0, max(lV1, lV2));
-			vec3 lCenter = (lV0 + lV1 + lV2) / 3f;
+		(int count, vec3 min, vec3 max) lVolume0 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
+		(int count, vec3 min, vec3 max) lVolume1 = (0, new vec3(float.PositiveInfinity), new vec3(float.NegativeInfinity));
 
-			if (all(lessThanEqual(lCenter, pAxis)))
+		for (int i = start; i < end; i++)
+		{
+			TriangleData lTriangle = cookData.triangleBuffer[i];
+
+			if (all(lessThanEqual(lTriangle.bounds.Center, pAxis)))
 			{
 				++lVolume0.count;
-				lVolume0.min = min(lVolume0.min, lMin);
-				lVolume0.max = max(lVolume0.max, lMax);
+				lVolume0.min = min(lVolume0.min, lTriangle.bounds.Min);
+				lVolume0.max = max(lVolume0.max, lTriangle.bounds.Max);
 			}
 			else
 			{
 				++lVolume1.count;
-				lVolume1.min = min(lVolume1.min, lMin);
-				lVolume1.max = max(lVolume1.max, lMax);
+				lVolume1.min = min(lVolume1.min, lTriangle.bounds.Min);
+				lVolume1.max = max(lVolume1.max, lTriangle.bounds.Max);
 			}
 		}
 
-		return lVolume0.count * (lVolume0.max.x - lVolume0.min.x) * (lVolume0.max.y - lVolume0.min.y) * (lVolume0.max.z - lVolume0.min.z)
-			   + lVolume1.count * (lVolume1.max.x - lVolume1.min.x) * (lVolume1.max.y - lVolume1.min.y) * (lVolume1.max.z - lVolume1.min.z);
+		Bounds lVolume0Bounds = lVolume0.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume0.min, lVolume0.max);
+
+		Bounds lVolume1Bounds = lVolume1.count <= 0
+			? new Bounds(new vec3(0f), new vec3(0f))
+			: new Bounds(lVolume1.min, lVolume1.max);
+
+		return BVHBuilder.GetVolumeCost(lVolume0.count, lVolume0Bounds.Extent * 2f)
+			 + BVHBuilder.GetVolumeCost(lVolume1.count, lVolume1Bounds.Extent * 2f);
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
 	public virtual ShapeData GetShaderShape(int pTexelIndex)
 	{
 		return new ShapeData {
 			type = (int)ERaytracedShapeType.BoundingVolume,
 			dataTexelIndex = pTexelIndex,
-			boundMin = GlobalMin,
-			boundMax = GlobalMax,
+			boundMin = bounds.Min,
+			boundMax = bounds.Max,
 		};
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public BoundingVolumeData GetShaderData(int pChildOffset = 0)
+	[MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
+	public virtual IShaderData GetShaderData(int pChildOffset = 0)
 	{
 		return new BoundingVolumeData {
-			startIndex = children.Count > 0 ? pChildOffset : startIndex,
-			count = children.Count > 0 ? 0 : count,
+			startIndex = Children.Length > 0 ? pChildOffset : start,
+			count = Children.Length > 0 ? 0 : ChildCount,
 		};
 	}
 
 	public virtual string ToString(int pDepth)
 	{
-		if (children.Count > 0)
+		if (Children.Length > 0)
 		{
 			string lString = $"{GetType().Name}";
 
-			for (int i = 0; i < children.Count; i++)
+			for (int i = 0; i < Children.Length; i++)
 			{
-				lString += $"\n{new string('-', pDepth * 5)}---> {children[i].ToString(pDepth + 1)}";
+				lString += $"\n{new string('-', pDepth * 5)}---> {Children[i].ToString(pDepth + 1)}";
 			}
 
 			return lString;

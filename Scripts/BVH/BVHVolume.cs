@@ -1,12 +1,10 @@
 namespace Astral.Raytracer;
 
-public interface IBVHVolume
+public interface IBVHVolume : IBounded
 {
-	vec3 Min { get; }
-	vec3 Max { get; }
 	int ChildCount { get; }
 
-	int Split(int pMaxDepth, int pVertexIndexOffset);
-	float GetSplitScore(vec3 pAxis);
+	void Split(int pMaxDepth);
+	float GetSplitCost(vec3 pAxis);
 	string ToString(int pDepth);
 }

@@ -30,4 +30,4 @@ driver/threads/thread_model=2
 occlusion_culling/use_occlusion_culling=true
 pathtracing/bvh_global_depth=32
 pathtracing/bvh_mesh_depth=32
-pathtracing/bvh_split_tests=128
+pathtracing/bvh_split_tests=16

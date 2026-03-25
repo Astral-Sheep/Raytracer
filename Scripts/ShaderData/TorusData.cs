@@ -8,8 +8,8 @@ namespace Astral.Raytracer;
 
 public struct TorusData : IShaderData
 {
-	public float innerRadius;
-	public float outerRadius;
+	public float minorRadius;
+	public float majorRadius;
 	public mat4 transform;
 	public int materialIndex;
 
@@ -28,8 +28,8 @@ public struct TorusData : IShaderData
 					}
 				}
 
-				lWriter.Write(innerRadius); // 68
-				lWriter.Write(outerRadius); // 72
+				lWriter.Write(minorRadius); // 68
+				lWriter.Write(majorRadius); // 72
 				lWriter.Write(materialIndex); // 76
 
 				int lSize = GetMarshalSize();

@@ -243,7 +243,7 @@ void debug_bounce_count(inout vec3 albedo, in Ray ray, inout uint rng_state)
 void debug_volume_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 {
 	int volume_tests = trace(ray, rng_state).volume_test_count;
-	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(volume_tests) / float(max_volume_tests)), vec3(1.0, 0.0, 0.0), float(volume_tests > max_volume_tests));
+	albedo.rgb = mix(mix(vec3(0.0), vec3(1.0), float(volume_tests - 1) / float(max_volume_tests)), vec3(1.0, 0.0, 0.0), float(volume_tests > max_volume_tests));
 }
 
 void debug_shape_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
@@ -265,7 +265,7 @@ void debug_tests(inout vec3 albedo, in Ray ray, inout uint rng_state)
 	
 	albedo.rgb = mix(
 		vec3(float(shape_tests) / float(max_shape_tests), 0.0, float(volume_tests - 1) / float(max_volume_tests)),
-		vec3(0.0, 1.0, 0.0),
+		vec3(1.0),
 		float(volume_tests > max_volume_tests || shape_tests > max_shape_tests)
 	);
 }

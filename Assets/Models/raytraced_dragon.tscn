@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://xjqi6prrmgp5"]
 
 [ext_resource type="PackedScene" uid="uid://d1jhxfmosbciv" path="res://Assets/Models/dragon.glb" id="1_mktyi"]
-[ext_resource type="Script" uid="uid://c5hymns32fvqe" path="res://Scripts/Shapes/RaytracedMesh.cs" id="2_2id28"]
+[ext_resource type="Script" uid="uid://c5hymns32fvqe" path="res://Scripts/RaytracedNodes/RaytracedMesh.cs" id="2_2id28"]
 
 [node name="RaytracedDragon" unique_id=690981699 instance=ExtResource("1_mktyi")]
 

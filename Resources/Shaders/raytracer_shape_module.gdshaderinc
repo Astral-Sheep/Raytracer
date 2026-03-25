@@ -24,6 +24,8 @@ const float BV_DATA_SIZE = 0.5;
 const float SPHERE_DATA_SIZE = 2.0;
 const float MESH_DATA_SIZE = 4.75;
 const float SUBMESH_DATA_SIZE = 0.75;
+const float CYLINDER_DATA_SIZE = 4.75;
+const float TORUS_DATA_SIZE = 4.75;
 
 // Mesh
 const int VERTEX_DATA_SIZE = 2;
@@ -201,28 +203,6 @@ Material get_material(in int index)
 	//mat.flat_shading = bool(floatBitsToInt(raw_data3.z) != 0);
 	mat.flat_shading = false;
 	
-	//mat.type = raw_bytes.x & 0xFF;
-	//mat.texture_index = ((raw_bytes.x & 0xFFFF00) >> 0x08) - (MIN_SHORT - 1);
-	//
-	//mat.color.r = float((raw_bytes.x & 0xFF000000) >> 0x18) * INV_255;
-	//mat.color.g = float((raw_bytes.y & 0xFF)) * INV_255;
-	//mat.color.b = float((raw_bytes.y & 0xFF00) >> 0x08) * INV_255;
-	//
-	//mat.emissive.r = float((raw_bytes.y & 0xFF0000) >> 0x10) * INV_255;
-	//mat.emissive.g = float((raw_bytes.y & 0xFF000000) >> 0x18) * INV_255;
-	//mat.emissive.b = float((raw_bytes.z & 0xFF)) * INV_255;
-	//mat.emissive_intensity = halfBitsToFloat((raw_bytes.z & 0xFFFF00) >> 0x08);
-	//
-	//mat.smoothness = float((raw_bytes.z & 0xFF000000) >> 0x18) * INV_255;
-	//mat.specular_color.r = float((raw_bytes.w & 0xFF)) * INV_255;
-	//mat.specular_color.g = float((raw_bytes.w & 0xFF00) >> 0x08) * INV_255;
-	//mat.specular_color.b = float((raw_bytes.w & 0xFF0000) >> 0x10) * INV_255;
-	//mat.specular_probability = float((raw_bytes.w & 0xFF000000) >> 0x18) * INV_255;
-	
-	//mat.color.r = float((raw_bytes.x) >> 0x18) * INV_255;
-	//mat.color.g = float((raw_bytes.x & 0xFF00) >> 0x08) * INV_255;
-	//mat.color.b = float((raw_bytes.x & 0xFF0000) >> 0x10) * INV_255;
-	
 	return mat;
 }
 
@@ -385,13 +365,23 @@ HitResult get_default_result()
 	);
 }
 
+bool ray_local_volume(in Ray local_ray, in Shape shape, in mat4 transform, inout HitResult result)
+{
+#if DEBUG
+	++result.volume_test_count;
+#endif //DEBUG
+	
+	float max_dist = mix(MAX_DISTANCE, length((transform * vec4(result.info.point, 1.0)).xyz), float(result.info.hit));
+	return ray_box(local_ray, shape.bound_min, shape.bound_max, max_dist);
+}
+
 bool ray_volume(in Ray ray, in Shape shape, inout HitResult result)
 {
 #if DEBUG
 	++result.volume_test_count;
 #endif //DEBUG
 	
-	return ray_box(ray, shape.bound_min, shape.bound_max, MAX_DISTANCE);
+	return ray_box(ray, shape.bound_min, shape.bound_max, result.info.dist);
 }
 
 bool ray_global_triangles(in Ray ray, int start, int count, inout HitResult result)
@@ -459,6 +449,8 @@ bool ray_submesh(in Ray local_ray, in Ray global_ray, in Submesh submesh, in mat
 		
 		bvh_stack[stack_index + 1] = submesh.start_index;
 		
+		mat4 world_to_local = inverse(local_to_world);
+		
 		while (stack_index >= 0 && loop_count < MAX_LOOPS)
 		{
 			++loop_count;
@@ -473,7 +465,7 @@ bool ray_submesh(in Ray local_ray, in Ray global_ray, in Submesh submesh, in mat
 				// First child to push
 				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + volume.count)
 				{
-					if (ray_volume(global_ray, shape, result))
+					if (ray_local_volume(local_ray, shape, world_to_local, result))
 					{
 						bvh_stack[stack_index + 1] = volume.start_index;
 						++stack_index;
@@ -502,7 +494,7 @@ bool ray_submesh(in Ray local_ray, in Ray global_ray, in Submesh submesh, in mat
 			{
 				--stack_index;
 				
-				if (ray_volume(global_ray, shape, result))
+				if (ray_local_volume(local_ray, shape, world_to_local, result))
 				{
 					hit = ray_local_triangles(local_ray, volume.start_index, volume.count, local_to_world, result);
 				}
@@ -527,7 +519,8 @@ bool ray_submesh(in Ray local_ray, in Ray global_ray, in Submesh submesh, in mat
 bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 {
 	bool hit = false;
-	Ray local_ray = transform_ray(ray, inverse(mesh.transform));
+	mat4 world_to_local = inverse(mesh.transform);
+	Ray local_ray = transform_ray(ray, world_to_local);
 	
 	// -2 or less means that the mesh has more than one surface
 	if (mesh.material_index > -2)
@@ -539,8 +532,9 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 		int stack_index = -1;
 		
 		bvh_stack[stack_index + 1] = mesh.start_index;
+		++stack_index;
 		
-		while (stack_index >= 0 && loop_count < MAX_LOOPS)
+		while (stack_index >= 0)
 		{
 			++loop_count;
 			
@@ -553,9 +547,9 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 				int last_child_index = bvh_stack[stack_index + 1];
 				
 				// First child to push
-				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + volume.count)
+				if (last_child_index < volume.start_index || last_child_index >= volume.start_index + 2)
 				{
-					if (ray_volume(ray, shape, result))
+					if (ray_local_volume(local_ray, shape, world_to_local, result))
 					{
 						bvh_stack[stack_index + 1] = volume.start_index;
 						++stack_index;
@@ -563,11 +557,10 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 					else
 					{
 						--stack_index;
-						continue;
 					}
 				}
 				// All children were pushed
-				else if (last_child_index == volume.start_index + volume.count - 1)
+				else if (last_child_index == volume.start_index + 1)
 				{
 					bvh_stack[stack_index + 1] = 0;
 					--stack_index;
@@ -577,15 +570,13 @@ bool ray_mesh(in Ray ray, in Mesh mesh, inout HitResult result)
 					++bvh_stack[stack_index + 1];
 					++stack_index;
 				}
-				
-				break;
 			}
 			else
 			{
 				--stack_index;
 				
 				if (
-					ray_volume(ray, shape, result)
+					ray_local_volume(local_ray, shape, world_to_local, result)
 					&& ray_local_triangles(local_ray, volume.start_index, volume.count, mesh.transform, result)
 				)
 				{

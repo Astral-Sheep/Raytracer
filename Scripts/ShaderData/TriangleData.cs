@@ -10,6 +10,8 @@ public struct TriangleData : IShaderData
 	public int v1;
 	public int v2;
 
+	public Bounds bounds;
+
 	public byte[] GetBytes()
 	{
 		using (MemoryStream lStream = new MemoryStream())

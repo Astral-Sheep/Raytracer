@@ -9,7 +9,7 @@ namespace Astral.Raytracer;
 public struct CylinderData : IShaderData
 {
 	public float radius;
-	public float height;
+	public float halfHeight;
 	public mat4 transform;
 	public int materialIndex;
 
@@ -29,7 +29,7 @@ public struct CylinderData : IShaderData
 				}
 
 				lWriter.Write(radius); // 68
-				lWriter.Write(height); // 72
+				lWriter.Write(halfHeight); // 72
 				lWriter.Write(materialIndex); // 76
 
 				int lSize = GetMarshalSize();

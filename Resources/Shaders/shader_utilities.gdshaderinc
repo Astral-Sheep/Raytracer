@@ -220,18 +220,89 @@ float halfBitsToFloat(int x)
 		| int(e != 0) * ((e + 112) << 23 | m)
 		| (int(e == 0) & int(m != 0)) * ((v - 37) << 23 | ((m << (150 - v)) & 0x007FE000))
 	); // sign : normalized : denormalized
-	
-	//int float32Bits = 0;
-	//
-	//// Sign
-	//float32Bits |= (x & 0x8000) << 16;
-	//
-	//// Fraction
-	//float32Bits |= (x & 0x03FF) << 13;
-	//
-	//// Exponent
-	//int e = (x & 0x7C00) >> 10;
-	//float32Bits |= (x & 0x7C00);
-	//
-	//return intBitsToFloat(x);
 }
+
+int quartic_max_pos_roots(float a, float b, float c, float d, float e)
+{
+	int s = int(sign(a));
+	int count = 0;
+	
+	count += int(int(sign(b)) != s);
+	s = int(sign(b));
+	
+	count += int(int(sign(c)) != s);
+	s = int(sign(c));
+	
+	count += int(int(sign(d)) != s);
+	s = int(sign(d));
+	
+	count += int(int(sign(e)) != s);
+	s = int(sign(e));
+	
+	return count;
+}
+
+float cbrt(float a)
+{
+	return sign(a) * exp(log(abs(a)) / 3.0);
+}
+
+//vec2 cbrti(vec2 v)
+//{
+	//float a = length(v);
+	//a = exp(log(a) / 3.0);
+	//float th = atan(v.y / v.x) / 3.0;
+	//return a * vec2(cos(th), sin(th));
+//}
+//
+//float cubic(float b, float c, float d)
+//{
+	//float p = -b / 3.0;
+	//float q = p * p * p + b * c / 6.0 - 0.5 * d;
+	//float r = c / 3.0;
+	//
+	//float s = r - p * p;
+	//float u = q * q + s * s * s;
+	//
+	//if (u < 0.0)
+	//{
+		//vec2 t = vec2(0.0, sqrt(-u));
+		//vec2 Q = vec2(q, 0.0);
+		//return (cbrti(Q + t) + cbrti(Q - t)).x + p;
+	//}
+	//else
+	//{
+		//float t = sqrt(u);
+		//return cbrt(q + t) + cbrt(q - t) + p;
+	//}
+//}
+//
+//float root_sort(float a, float b, bool i)
+//{
+	//return EPSILON < b && b < abs(a) ? b * (i ? -1.0 : 1.0) : a;
+//}
+//
+//float quartic(float b, float c, float d, float e)
+//{
+	//float sqrb = b * b;
+	//float p = c - 3.0 * sqrb / 8.0;
+	//float q = b * sqrb / 8.0 - 0.5 * b * c + d;
+	//float r = (-3.0 * sqrb * sqrb + 256.0 * e - 64.0 * b * d + 16.0 * sqrb * c) / 256.0;
+	//
+	//float m = cubic(p, 0.25 * p * p - r, q * q / 8.0);
+	//
+	//float A = -0.25 * b;
+	//float B = 0.5 * sqrt(2.0 * m);
+	//float C = -2.0 * p - 2.0 * m;
+	//float D = -sqrt(2.0) * q / sqrt(m);
+	//float x = 10.0;
+	//float i = 1.0;
+	//float sqrtcpd = sqrt(C + D);
+	//float sqrtcmd = sqrt(C - D);
+	//
+	//x = root_sort(x, A + B + 0.5 * sqrtcpd, true);
+	//x = root_sort(x, A + B - 0.5 * sqrtcpd, false);
+	//x = root_sort(x, A - B + 0.5 * sqrtcmd, true);
+	//x = root_sort(x, A - B - 0.5 * sqrtcmd, false);
+	//return x;
+//}
